@@ -41,12 +41,13 @@ function Footer() {
             <div className="footer-section">
               <h3>Our Services</h3>
               <ul className="footer-links">
+                <li><a href="/services">HelpingHand</a></li>
                 <li><a href="/services">Women's Salon & Spa</a></li>
-                <li><a href="/services">Men's Grooming</a></li>
-                <li><a href="/services">Spa Services</a></li>
-                <li><a href="/services">Hair Services</a></li>
-                <li><a href="/services">Makeup</a></li>
-                <li><a href="/services">Cleaning</a></li>
+                <li><a href="/services">Men's Salon & Massage</a></li>
+                <li><a href="/services">Cleaning & Pest Control</a></li>
+                <li><a href="/services">AC & Appliance Repair</a></li>
+                <li><a href="/services">Electrician & Plumber & Carpenter & Mason</a></li>
+                <li><a href="/services">Home Decoration</a></li>
               </ul>
             </div>
 

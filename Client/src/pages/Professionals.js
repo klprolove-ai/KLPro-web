@@ -528,6 +528,18 @@ function Professionals() {
     fetchBookingHistory();
   }, []);
 
+  // Scroll to professionals section when page loads
+  useEffect(() => {
+    if (!loading && professionals.length > 0) {
+      setTimeout(() => {
+        const professionalsSection = document.getElementById('professionals-grid-section');
+        if (professionalsSection) {
+          professionalsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  }, [loading, professionals.length]);
+
   const specializationOptions = useMemo(() => {
     const allSpecializations = professionals
       .flatMap((professional) => professional.skills || [professional.specialization])
@@ -776,7 +788,7 @@ function Professionals() {
       {loading && <p className="professionals-message">Loading professionals...</p>}
 
       {!loading && (
-        <section className="professionals-grid">
+        <section className="professionals-grid" id="professionals-grid-section">
           {filteredProfessionals.length ? (
             filteredProfessionals.map((professional, index) => {
               const weeklyBookings = Math.max(4, Math.round(professional.completedBookings / 40));
