@@ -14,6 +14,6 @@ const API_BASE_URL = configuredApiUrl
   ? ensureApiSuffix(configuredApiUrl)
   : isDevelopment
     ? 'http://localhost:5000/api'
-    : 'https://kl-pro.onrender.com/api';
+    : 'https://klpro-web.onrender.com/api';
 
 export default API_BASE_URL;

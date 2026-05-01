@@ -10,7 +10,7 @@
 
 ### Backend (Render)
 
-- **URL**: https://kl-pro.onrender.com
+- **URL**: https://klpro-web.onrender.com
 - **Runtime**: Node.js
 - **Auto-deploy**: Enabled on push to main
 
@@ -27,8 +27,8 @@ The frontend automatically connects to the backend based on the environment:
 **Production (Vercel)**
 
 - Frontend: https://kl-pro.vercel.app
-- Backend: https://kl-pro.onrender.com
-- API calls go to: `https://kl-pro.onrender.com/api`
+- Backend: https://klpro-web.onrender.com
+- API calls go to: `https://klpro-web.onrender.com/api`
 
 ## Frontend Environment Variables (Vercel)
 
@@ -40,7 +40,7 @@ To override the default production API URL, set environment variables in Vercel 
 4. Add/Update:
    ```
    Name: REACT_APP_API_URL
-   Value: https://kl-pro.onrender.com/api
+   Value: https://klpro-web.onrender.com/api
    Environments: Production, Preview, Development
    ```
 5. Save and redeploy
