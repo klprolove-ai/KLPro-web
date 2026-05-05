@@ -1,19 +1,34 @@
 // API Configuration
-// Priority: environment variable > production default > development default
-const isDevelopment = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-
+// Priority: environment variable > development/production detection
 const ensureApiSuffix = (baseUrl) => {
   const normalized = String(baseUrl || '').trim().replace(/\/+$/, '');
   if (!normalized) return '';
   return normalized.endsWith('/api') ? normalized : `${normalized}/api`;
 };
 
-const configuredApiUrl = process.env.REACT_APP_API_URL;
+// Get API URL from environment variable or detect based on hostname
+const getApiUrl = () => {
+  // First priority: explicit environment variable
+  if (process.env.REACT_APP_API_URL) {
+    return ensureApiSuffix(process.env.REACT_APP_API_URL);
+  }
 
-const API_BASE_URL = configuredApiUrl
-  ? ensureApiSuffix(configuredApiUrl)
-  : isDevelopment
-    ? 'http://localhost:5000/api'
-    : 'https://klpro-web.onrender.com/api';
+  // Check if running in browser
+  if (typeof window === 'undefined') {
+    return 'https://klpro-web.onrender.com/api';
+  }
+
+  const hostname = window.location.hostname;
+  
+  // Development environments
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:5000/api';
+  }
+
+  // Production - use environment variable or backend URL
+  return process.env.REACT_APP_BACKEND_URL || 'https://klpro-web.onrender.com/api';
+};
+
+const API_BASE_URL = getApiUrl();
 
 export default API_BASE_URL;

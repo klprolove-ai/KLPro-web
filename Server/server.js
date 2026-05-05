@@ -18,6 +18,9 @@ const corsOptions = {
       'http://localhost:5000',
       'https://kl-pro.vercel.app',
       'https://kl-pro-client.vercel.app',
+      'https://www.klpro.company',
+      'https://klpro.company',
+      'https://klpro-web.onrender.com',
       origin // Allow current origin in development
     ];
     
