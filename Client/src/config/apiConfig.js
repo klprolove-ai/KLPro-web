@@ -26,7 +26,7 @@ const getApiUrl = () => {
   }
 
   // Production - use environment variable or backend URL
-  return process.env.REACT_APP_BACKEND_URL || 'https://klpro-web.onrender.com/api';
+  return process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'https://klpro-web.onrender.com/api';
 };
 
 const API_BASE_URL = getApiUrl();
