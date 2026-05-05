@@ -21,26 +21,39 @@ const corsOptions = {
       'https://www.klpro.company',
       'https://klpro.company',
       'https://klpro-web.onrender.com',
-      origin // Allow current origin in development
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5000'
     ];
     
+    // Allow if origin is in list or if no origin (like in mobile apps)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, true); // Allow all for now
+      // Log blocked origins for debugging
+      console.warn('CORS blocked origin:', origin);
+      callback(null, true); // Still allow - let app handle errors gracefully
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 86400 // 24 hours
 };
 
 app.use(cors(corsOptions));
 
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: [
+      'http://localhost:3000',
+      'https://kl-pro.vercel.app',
+      'https://kl-pro-client.vercel.app',
+      'https://www.klpro.company',
+      'https://klpro.company',
+      'https://klpro-web.onrender.com'
+    ],
     methods: ['GET', 'POST'],
+    credentials: true
   },
 });
 
