@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Home.css';
 import HeroCarousel from '../components/HeroCarousel';
@@ -36,11 +36,52 @@ function Home() {
   const [mostBookedServices, setMostBookedServices] = useState([]);
   const [homepageSections, setHomepageSections] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const categoriesShellRef = useRef(null);
+  const categoriesTrackRef = useRef(null);
+  const salonShellRef = useRef(null);
+  const salonTrackRef = useRef(null);
   useEffect(() => {
     fetchMostBookedServices();
     fetchHomepageCards();
   }, []);
+
+  async function fetchMostBookedServices() {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/services/most-booked`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        setMostBookedServices([]);
+        return;
+      }
+
+      const services = await response.json();
+      const formattedServices = (Array.isArray(services) ? services : [])
+        .map(service => ({
+          id: service._id,
+          name: service.name,
+          price: service.basePrice,
+          rating: service.rating || 0,
+          reviews: service.reviewCount || 0,
+          time: `${service.estimatedDuration} mins`,
+          image: service.image || null,
+          discount: null
+        }))
+        .slice(0, 6);
+
+      setMostBookedServices(formattedServices);
+    } catch (err) {
+      console.error('Error fetching most booked services:', err);
+      setMostBookedServices([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const fetchHomepageCards = async () => {
     try {
@@ -59,45 +100,6 @@ function Home() {
       setHomepageSections(data.sections || null);
     } catch (err) {
       console.error('Error fetching homepage cards:', err);
-    }
-  };
-
-  const fetchMostBookedServices = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/services/most-booked`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch most booked services');
-      }
-
-      const services = await response.json();
-      // Map database services to display format
-      const formattedServices = (Array.isArray(services) ? services : [])
-        .map(service => ({
-          id: service._id,
-          name: service.name,
-          price: service.basePrice,
-          rating: service.rating || 0,
-          reviews: service.reviewCount || 0,
-          time: `${service.estimatedDuration} mins`,
-          image: service.image || null,
-          discount: null
-        }))
-        .slice(0, 6); // Show only first 6
-      
-      setMostBookedServices(formattedServices);
-    } catch (err) {
-      console.error('Error fetching most booked services:', err);
-      // Fallback to empty array if fetch fails
-      setMostBookedServices([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -205,6 +207,20 @@ function Home() {
     navigate(buildProfessionalsPath(params));
   };
 
+  const scrollShell = (shellRef, trackRef, distance) => {
+    if (!shellRef?.current) return;
+
+    const shellElement = shellRef.current;
+    const trackElement = trackRef?.current;
+
+    if (trackElement?.classList.contains('auto-scroll-ltr')) {
+      trackElement.classList.add('paused');
+      setTimeout(() => trackElement.classList.remove('paused'), 2600);
+    }
+
+    shellElement.scrollBy({ left: distance, behavior: 'smooth' });
+  };
+
   return (
     <div className="home">
       <HeroCarousel />
@@ -233,7 +249,26 @@ function Home() {
             <p>Find the right service in seconds and book at your convenience.</p>
           </div>
           <div className="categories-carousel-shell">
-            <div className="categories-track auto-scroll-ltr">
+            <div className="carousel-nav-holder">
+              <button
+                aria-label="Scroll categories left"
+                className="carousel-nav left"
+                onClick={() => scrollShell(categoriesShellRef, categoriesTrackRef, -320)}
+                type="button"
+              >
+                ‹
+              </button>
+              <button
+                aria-label="Scroll categories right"
+                className="carousel-nav right"
+                onClick={() => scrollShell(categoriesShellRef, categoriesTrackRef, 320)}
+                type="button"
+              >
+                ›
+              </button>
+            </div>
+            <div ref={categoriesShellRef} className="categories-scroll-shell">
+              <div ref={categoriesTrackRef} className="categories-track auto-scroll-ltr">
               {[...dynamicQuickCategories, ...dynamicQuickCategories].map((cat, idx) => (
                 <div key={`${cat.id}-${idx}`} className="quick-card" aria-hidden={idx >= dynamicQuickCategories.length}>
                   <div className="quick-image">
@@ -254,6 +289,7 @@ function Home() {
                   </button>
                 </div>
               ))}
+              </div>
             </div>
           </div>
         </div>
@@ -368,7 +404,8 @@ function Home() {
             </div>
             {category.title === 'Salon for Women' ? (
               <div className="category-services-carousel-shell">
-                <div className="category-services-track auto-scroll-ltr">
+                <div ref={salonShellRef} className="category-services-scroll-shell">
+                  <div ref={salonTrackRef} className="category-services-track auto-scroll-ltr">
                   {[...category.services, ...category.services].map((service, idx) => {
                     const serviceName = typeof service === 'string' ? service : service.name;
                     const serviceImage = typeof service === 'string' ? `/${category.icon}` : service.image;
@@ -395,6 +432,25 @@ function Home() {
                       </div>
                     );
                   })}
+                  </div>
+                </div>
+                <div className="carousel-nav-holder category-nav-holder">
+                  <button
+                    aria-label={`Scroll ${category.title} left`}
+                    className="carousel-nav left"
+                    onClick={() => scrollShell(salonShellRef, salonTrackRef, -260)}
+                    type="button"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    aria-label={`Scroll ${category.title} right`}
+                    className="carousel-nav right"
+                    onClick={() => scrollShell(salonShellRef, salonTrackRef, 260)}
+                    type="button"
+                  >
+                    ›
+                  </button>
                 </div>
               </div>
             ) : (

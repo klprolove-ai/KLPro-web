@@ -70,6 +70,10 @@ function Login() {
     setPhoneError('');
   };
 
+  const handleForgotPassword = () => {
+    navigate('/contact');
+  };
+
   useEffect(() => {
     const mode = (searchParams.get('mode') || '').toLowerCase();
     setIsLogin(mode !== 'signup');
@@ -687,6 +691,16 @@ function Login() {
                 {showPassword ? <AiOutlineEyeInvisible /> : <AiOutlineEye />}
               </button>
             </div>
+            {isLogin && (
+              <button
+                type="button"
+                className="forgot-password-btn"
+                onClick={handleForgotPassword}
+                disabled={loading}
+              >
+                Forgot password?
+              </button>
+            )}
           </div>
 
           {!isLogin && (

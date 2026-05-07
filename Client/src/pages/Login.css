@@ -238,6 +238,30 @@
   opacity: 0.5;
 }
 
+.forgot-password-btn {
+  align-self: flex-end;
+  margin-top: 8px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #667eea;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.forgot-password-btn:hover:not(:disabled) {
+  color: #764ba2;
+}
+
+.forgot-password-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  text-decoration: none;
+}
+
 .checkbox-group {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
