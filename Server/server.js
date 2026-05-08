@@ -92,6 +92,12 @@ app.use('/api/calls', require('./routes/calls'));
 app.use('/api/contact', require('./routes/contact'));
 app.use('/api/homepage-cards', require('./routes/homepageCards'));
 
+// New Payment & Wallet Routes
+app.use('/api/wallet', require('./routes/wallet'));
+app.use('/api/payment', require('./routes/payment'));
+app.use('/api/refund', require('./routes/refund'));
+app.use('/api/admin-wallet', require('./routes/admin-wallet'));
+
 // Health Check
 app.get('/', (req, res) => {
   res.json({ message: 'KLPro Pvt Ltd API is running' });

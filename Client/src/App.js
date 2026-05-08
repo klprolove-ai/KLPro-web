@@ -24,6 +24,7 @@ import TermsConditions from './pages/TermsConditions';
 import HelpCenter from './pages/HelpCenter';
 import FAQs from './pages/FAQs';
 import Contact from './pages/Contact';
+import BankDetails from './pages/BankDetails';
 import { CallProvider } from './context/CallContext';
 
 function ScrollToTop() {
@@ -66,6 +67,7 @@ function App() {
                       <Route path="/bookings" element={<Bookings />} />
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/professional/dashboard" element={<ProfessionalDashboard />} />
+                      <Route path="/professional/bank-details" element={<BankDetails />} />
                       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                       <Route path="/terms-conditions" element={<TermsConditions />} />
                       <Route path="/help-center" element={<HelpCenter />} />

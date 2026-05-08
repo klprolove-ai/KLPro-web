@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminServicesSection from '../components/AdminServicesSection';
 import AdminProductsSection from '../components/AdminProductsSection';
+import AdminWalletDashboard from '../components/Admin/AdminDashboard';
 import API_BASE_URL from '../config/apiConfig';
 import { SERVICE_HIERARCHY, getHierarchyOptions, getServiceTypeOptions } from '../config/serviceHierarchy';
 import { useCall } from '../context/CallContext';
@@ -927,7 +928,8 @@ function AdminDashboard() {
 
   const sidebarItems = [
     { id: 'shop', icon: '🛍️', label: 'Shop', count: statistics?.totalUsers || 0 },
-    { id: 'orders', icon: '📦', label: 'Booking', count: bookings.length },
+    { id: 'orders', icon: '📦', label: 'Orders', count: bookings.length },
+    { id: 'wallet', icon: '💰', label: 'Wallet', count: null },
     { id: 'customers', icon: '👥', label: 'Customers', count: customerUsers.length },
     { id: 'contacts', icon: '✉️', label: 'Contacts', count: contacts.length },
     { id: 'professionals', icon: '🧑‍🔧', label: 'Professionals', count: professionalUsers.length, pendingCount: verificationQueueCount },
@@ -1312,6 +1314,16 @@ function AdminDashboard() {
                     )}
                   </aside>
                 </div>
+              </section>
+            )}
+
+            {activeTab === 'wallet' && (
+              <section className="users-section">
+                <div className="users-header">
+                  <h2>Wallet Management</h2>
+                  <p>Monitor commissions, cash flow, and professional balances.</p>
+                </div>
+                <AdminWalletDashboard />
               </section>
             )}
 

@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import API_BASE_URL from '../config/apiConfig';
+import ProductPaymentIntegration from '../components/Payment/ProductPaymentIntegration';
 import './Cart.css';
 import {
   clearCart,
@@ -23,6 +26,7 @@ function Cart() {
   });
   const [checkoutError, setCheckoutError] = useState('');
   const [orderSuccess, setOrderSuccess] = useState(null);
+  const [pendingPaymentOrder, setPendingPaymentOrder] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -80,7 +84,7 @@ function Cart() {
     }));
   };
 
-  const placeOrder = (event) => {
+  const placeOrder = async (event) => {
     event.preventDefault();
 
     if (!cartItems.length) {
@@ -96,26 +100,83 @@ function Cart() {
       return;
     }
 
-    const order = {
-      id: `ORD-${Date.now()}`,
-      items: cartItems,
-      customer: checkoutForm,
-      subtotal,
-      shipping,
-      tax,
-      total,
-      paymentMethod: checkoutForm.paymentMethod,
-      createdAt: new Date().toISOString(),
-      status: 'confirmed',
-    };
+    try {
+      setCheckoutError('');
+      const token = localStorage.getItem('token');
 
-    const existingOrders = JSON.parse(localStorage.getItem(ORDERS_STORAGE_KEY) || '[]');
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify([order, ...existingOrders]));
+      // Create product order on backend
+      const response = await axios.post(
+        `${API_BASE_URL}/products/create-order`,
+        {
+          products: cartItems.map(item => ({
+            productId: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image,
+          })),
+          shippingDetails: {
+            fullName: checkoutForm.fullName,
+            email: checkoutForm.email,
+            phone: checkoutForm.phone,
+            address: checkoutForm.address,
+            city: checkoutForm.city,
+            pincode: checkoutForm.pincode,
+          },
+          subtotal,
+          shipping,
+          tax,
+          total,
+          paymentMethod: checkoutForm.paymentMethod,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    clearCart();
-    setCartItems([]);
-    setCheckoutError('');
-    setOrderSuccess(order);
+      const orderId = response.data.data.orderId;
+
+      if (checkoutForm.paymentMethod === 'online') {
+        // Show payment UI
+        setPendingPaymentOrder({
+          orderId,
+          total,
+          items: cartItems,
+          shippingDetails: {
+            fullName: checkoutForm.fullName,
+            email: checkoutForm.email,
+            phone: checkoutForm.phone,
+          },
+        });
+      } else {
+        // Cash on delivery
+        const order = {
+          id: orderId,
+          items: cartItems,
+          customer: checkoutForm,
+          subtotal,
+          shipping,
+          tax,
+          total,
+          paymentMethod: checkoutForm.paymentMethod,
+          createdAt: new Date().toISOString(),
+          status: 'confirmed',
+        };
+
+        const existingOrders = JSON.parse(localStorage.getItem(ORDERS_STORAGE_KEY) || '[]');
+        localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify([order, ...existingOrders]));
+
+        clearCart();
+        setCartItems([]);
+        setCheckoutError('');
+        setOrderSuccess(order);
+      }
+    } catch (error) {
+      setCheckoutError(error.response?.data?.message || 'Failed to create order');
+      console.error('Order creation error:', error);
+    }
   };
 
   return (
@@ -205,12 +266,44 @@ function Cart() {
         </section>
 
         <aside className="cart-summary-panel">
-          {orderSuccess ? (
+          {pendingPaymentOrder ? (
+            <div className="summary-card">
+              <ProductPaymentIntegration
+                orderId={pendingPaymentOrder.orderId}
+                amount={pendingPaymentOrder.total}
+                items={pendingPaymentOrder.items}
+                shippingDetails={pendingPaymentOrder.shippingDetails}
+                onPaymentComplete={(paymentData) => {
+                  const order = {
+                    id: pendingPaymentOrder.orderId,
+                    items: pendingPaymentOrder.items,
+                    customer: checkoutForm,
+                    subtotal,
+                    shipping,
+                    tax,
+                    total: pendingPaymentOrder.total,
+                    paymentMethod: 'online',
+                    paymentId: paymentData.paymentId,
+                    createdAt: new Date().toISOString(),
+                    status: 'confirmed',
+                  };
+
+                  const existingOrders = JSON.parse(localStorage.getItem(ORDERS_STORAGE_KEY) || '[]');
+                  localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify([order, ...existingOrders]));
+
+                  clearCart();
+                  setCartItems([]);
+                  setPendingPaymentOrder(null);
+                  setOrderSuccess(order);
+                }}
+              />
+            </div>
+          ) : orderSuccess ? (
             <div className="summary-card success-summary-card">
               <p className="success-label">Order confirmed</p>
               <h2>Thanks, {orderSuccess.customer.fullName}</h2>
               <p className="success-copy">
-                Your order has been placed and recorded locally. We will deliver it to your address shortly.
+                Your order has been placed and will be delivered to your address shortly.
               </p>
               <div className="summary-row">
                 <span>Order ID</span>
@@ -219,6 +312,10 @@ function Cart() {
               <div className="summary-row">
                 <span>Total</span>
                 <strong>₹{orderSuccess.total.toFixed(2)}</strong>
+              </div>
+              <div className="summary-row">
+                <span>Payment Method</span>
+                <strong>{orderSuccess.paymentMethod === 'online' ? 'Online Payment' : 'Cash on Delivery'}</strong>
               </div>
               <button className="checkout-btn" type="button" onClick={() => navigate('/products')}>
                 Continue Shopping

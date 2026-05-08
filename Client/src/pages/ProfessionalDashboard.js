@@ -5,6 +5,7 @@ import { SERVICE_HIERARCHY, getHierarchyOptions } from '../config/serviceHierarc
 import { getSocket, disconnectSocket } from '../api/socket';
 import { useCall } from '../context/CallContext';
 import LocationPopup from '../components/LocationPopup';
+import WithdrawalForm from '../components/Professional/WithdrawalForm';
 import './ProfessionalDashboard.css';
 
 const formatCurrency = (amount) => `INR ${Number(amount || 0).toLocaleString('en-IN')}`;
@@ -856,6 +857,13 @@ function ProfessionalDashboard() {
           >
             <span>📱 Click Link & Download The App For Safety</span>
           </a>
+          <a
+            href="#wallet-section"
+            className="app-download-button pro-app-download"
+            style={{ marginTop: 12, display: 'inline-block', marginLeft: 8 }}
+          >
+            <span>💰 Open Wallet</span>
+          </a>
         </div>
         <div className={`pro-approval ${approvalStatus}`}>
           <div>Status: {approvalStatus}</div>
@@ -906,6 +914,33 @@ function ProfessionalDashboard() {
         <article><span>In Progress</span><strong>{stats.inProgress}</strong></article>
         <article><span>Completed</span><strong>{stats.completed}</strong></article>
         <article><span>Total Earnings</span><strong>{formatCurrency(stats.earnings)}</strong></article>
+      </section>
+
+      <section id="wallet-section" className="pro-profile-editor" style={{ marginTop: 24 }}>
+        <div className="pro-editor-header">
+          <h2>Wallet & Withdrawals</h2>
+          <p>View your balance, bank details, and request withdrawals from one place.</p>
+          <button 
+            onClick={() => navigate('/professional/bank-details')}
+            style={{
+              marginTop: 10,
+              padding: '10px 16px',
+              background: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'background 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.background = '#0056b3'}
+            onMouseOut={(e) => e.target.style.background = '#007bff'}
+          >
+            💳 Verify/Edit Bank Details
+          </button>
+        </div>
+        <WithdrawalForm />
       </section>
 
       <section className="pro-profile-editor">

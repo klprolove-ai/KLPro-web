@@ -370,3 +370,56 @@ exports.getProductCategories = async (req, res) => {
     });
   }
 };
+
+// Create product order
+exports.createProductOrder = async (req, res) => {
+  try {
+    const ProductOrder = require('../models/ProductOrder');
+    const userId = req.user._id;
+    const { products, shippingDetails, subtotal, shipping, tax, total, paymentMethod } = req.body;
+
+    if (!products || products.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Products are required',
+      });
+    }
+
+    if (!shippingDetails) {
+      return res.status(400).json({
+        success: false,
+        message: 'Shipping details are required',
+      });
+    }
+
+    const productOrder = new ProductOrder({
+      customerId: userId,
+      products,
+      shippingDetails,
+      subtotal,
+      shipping,
+      tax,
+      total,
+      paymentMethod: paymentMethod === 'online' ? 'razorpay' : 'cod',
+      paymentStatus: paymentMethod === 'online' ? 'pending' : 'pending',
+      orderStatus: 'confirmed',
+    });
+
+    await productOrder.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Product order created successfully',
+      data: {
+        orderId: productOrder._id,
+        total: productOrder.total,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating product order:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

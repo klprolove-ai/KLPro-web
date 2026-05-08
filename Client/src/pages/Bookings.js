@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import API_BASE_URL from '../config/apiConfig';
 import { getSocket } from '../api/socket';
 import { useCall } from '../context/CallContext';
+import PaymentIntegration from '../components/Payment/PaymentIntegration';
 import './Bookings.css';
 
 const isObjectId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ''));
@@ -52,6 +53,7 @@ function Bookings() {
   const bookingSoundReadyRef = useRef(false);
   const bookingAudioUnlockedRef = useRef(false);
   const pendingBookingSoundRef = useRef(false);
+  const [pendingPaymentBooking, setPendingPaymentBooking] = useState(null);
 
   const playBeep = useCallback(() => {
     try {
@@ -98,6 +100,7 @@ function Bookings() {
     scheduledDate: formatDateInput(new Date()),
     scheduledTime: '10:00 AM',
     price: '',
+    paymentMethod: 'razorpay',
     notes: '',
     serviceAddress: {
       street: '',
@@ -383,6 +386,7 @@ function Bookings() {
         serviceAddress: formData.serviceAddress,
         price: parsedPrice,
         notes: formData.notes,
+        paymentMethod: formData.paymentMethod,
       };
 
       const response = await fetch(`${API_BASE_URL}/bookings`, {
@@ -402,11 +406,17 @@ function Bookings() {
       const createdBooking = await response.json();
 
       localStorage.removeItem('bookingDraft');
-      setSuccessMessage(
-        createdBooking?.startOtp
-          ? `Booking request sent. Share start OTP with professional at service start: ${createdBooking.startOtp}`
-          : 'Booking request sent successfully. You can track it below.'
-      );
+      if (formData.paymentMethod === 'razorpay') {
+        setPendingPaymentBooking({ bookingId: createdBooking?._id, amount: parsedPrice });
+        setSuccessMessage('Booking request created. Complete your Razorpay payment below to confirm payment status.');
+      } else {
+        setPendingPaymentBooking(null);
+        setSuccessMessage(
+          createdBooking?.startOtp
+            ? `Booking request sent. Share start OTP with professional at service start: ${createdBooking.startOtp}`
+            : 'Booking request sent successfully. You can track it below.'
+        );
+      }
       setPrefillNotice('');
 
       setFormData((current) => ({
@@ -421,6 +431,12 @@ function Bookings() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePaymentComplete = async () => {
+    setPendingPaymentBooking(null);
+    setSuccessMessage('Online payment completed successfully.');
+    await refreshBookings();
   };
 
   const handleCancelBooking = async (bookingId) => {
@@ -576,6 +592,30 @@ function Bookings() {
               />
             </label>
 
+            <fieldset className="full-width">
+              <legend>Payment Method</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="razorpay"
+                  checked={formData.paymentMethod === 'razorpay'}
+                  onChange={handleInputChange}
+                />
+                Online Payment (Razorpay)
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="cash"
+                  checked={formData.paymentMethod === 'cash'}
+                  onChange={handleInputChange}
+                />
+                Cash Payment
+              </label>
+            </fieldset>
+
             <label className="full-width">
               Notes (optional)
               <textarea
@@ -639,6 +679,16 @@ function Bookings() {
             </button>
           </div>
         </form>
+
+        {pendingPaymentBooking && (
+          <div className="booking-payment-panel">
+            <PaymentIntegration
+              bookingId={pendingPaymentBooking.bookingId}
+              amount={pendingPaymentBooking.amount}
+              onPaymentComplete={handlePaymentComplete}
+            />
+          </div>
+        )}
       </section>
 
       <section className="booking-history-section">

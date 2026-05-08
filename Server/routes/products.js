@@ -11,6 +11,7 @@ const {
   uploadProductImages,
   deleteProductImage,
   getProductCategories,
+  createProductOrder,
 } = require('../controllers/productController');
 
 // Middleware
@@ -21,6 +22,11 @@ const upload = require('../middleware/upload');
 // Public routes
 router.get('/categories', getProductCategories);
 router.get('/', getAllProducts);
+
+// User routes - MUST be before /:id route to avoid conflict
+router.post('/create-order', verifyToken, createProductOrder);
+
+// Product details route - AFTER specific routes
 router.get('/:id', getProductById);
 
 // Admin routes

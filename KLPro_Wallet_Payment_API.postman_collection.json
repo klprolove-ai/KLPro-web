@@ -1,0 +1,820 @@
+{
+  "info": {
+    "name": "KLPro Wallet & Payment System API",
+    "description": "Complete API collection for Professional Wallet & Payment System with Razorpay Integration",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var jsonData = pm.response.json();",
+                  "  pm.environment.set(\"token\", jsonData.token);",
+                  "  pm.environment.set(\"userId\", jsonData.user._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"professional@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallet - Professional",
+      "item": [
+        {
+          "name": "Get Wallet Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/wallet/details",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wallet", "details"]
+            }
+          }
+        },
+        {
+          "name": "Get Earnings Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/wallet/earnings-report?period=monthly",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wallet", "earnings-report"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "monthly",
+                  "description": "daily|weekly|monthly|yearly"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Bank Details",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"123456789012\",\n  \"ifscCode\": \"HDFC0000001\",\n  \"upiId\": \"user@hdfc\",\n  \"paymentMethods\": [\"bank_transfer\", \"upi\", \"net_banking\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/wallet/bank-details",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wallet", "bank-details"]
+            }
+          }
+        },
+        {
+          "name": "Get Bank Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/wallet/bank-details",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wallet", "bank-details"]
+            }
+          }
+        },
+        {
+          "name": "Initiate Withdrawal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500,\n  \"method\": \"bank_transfer\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/wallet/initiate-withdrawal",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wallet", "initiate-withdrawal"]
+            }
+          }
+        },
+        {
+          "name": "Get Withdrawal History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/wallet/withdrawal-history?status=completed&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wallet", "withdrawal-history"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "completed"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/wallet/transaction-history?type=earning_booking&status=completed&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wallet", "transaction-history"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "earning_booking"
+                },
+                {
+                  "key": "status",
+                  "value": "completed"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get My Refunds",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/wallet/my-refunds",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wallet", "my-refunds"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment - Processing",
+      "item": [
+        {
+          "name": "Create Order for Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"booking_12345\",\n  \"amount\": 1000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/create-order-booking",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "create-order-booking"]
+            }
+          }
+        },
+        {
+          "name": "Create Order for Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"product_12345\",\n  \"amount\": 500,\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/create-order-product",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "create-order-product"]
+            }
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razorpayOrderId\": \"order_123456\",\n  \"razorpayPaymentId\": \"pay_123456\",\n  \"razorpaySignature\": \"signature_hash\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Create Cash Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"booking_12345\",\n  \"amount\": 1000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/create-cash-payment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "create-cash-payment"]
+            }
+          }
+        },
+        {
+          "name": "Confirm Cash Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"payment_12345\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/confirm-cash",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "confirm-cash"]
+            }
+          }
+        },
+        {
+          "name": "Get Payment History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payment/history?status=completed&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "history"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "completed"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Refund - Management",
+      "item": [
+        {
+          "name": "Request Refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"payment_12345\",\n  \"bookingId\": \"booking_12345\",\n  \"reason\": \"service_not_completed\",\n  \"description\": \"The professional did not complete the service as promised\",\n  \"refundAmount\": 1000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/refund/request",
+              "host": ["{{base_url}}"],
+              "path": ["api", "refund", "request"]
+            }
+          }
+        },
+        {
+          "name": "Get My Refunds (User)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/refund/my-refunds",
+              "host": ["{{base_url}}"],
+              "path": ["api", "refund", "my-refunds"]
+            }
+          }
+        },
+        {
+          "name": "Get Refund Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/refund/{{refundId}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "refund", "{{refundId}}"]
+            }
+          }
+        },
+        {
+          "name": "Approve Refund (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refundId\": \"refund_12345\",\n  \"approvalNotes\": \"Refund approved by admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/refund/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "refund", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Reject Refund (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refundId\": \"refund_12345\",\n  \"approvalNotes\": \"Refund rejected - reason provided\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/refund/reject",
+              "host": ["{{base_url}}"],
+              "path": ["api", "refund", "reject"]
+            }
+          }
+        },
+        {
+          "name": "Get All Refunds (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/refund?status=pending&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "refund"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refund Webhook (Razorpay)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"refund.processed\",\n  \"payload\": {\n    \"refund\": {\n      \"id\": \"rfnd_123456\",\n      \"entity\": \"refund\",\n      \"status\": \"processed\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/refund/webhook/razorpay",
+              "host": ["{{base_url}}"],
+              "path": ["api", "refund", "webhook", "razorpay"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Wallet - Management",
+      "item": [
+        {
+          "name": "Get Admin Wallet Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin-wallet/details",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin-wallet", "details"]
+            }
+          }
+        },
+        {
+          "name": "Get Commission Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin-wallet/commission-report?period=monthly",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin-wallet", "commission-report"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "monthly",
+                  "description": "daily|weekly|monthly|yearly"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Professional Earnings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin-wallet/professional-earnings?page=1&limit=20&sortBy=earnings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin-wallet", "professional-earnings"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "earnings"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Credit Professional Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"professionalId\": \"professional_12345\",\n  \"amount\": 500,\n  \"reason\": \"Bonus for excellent service\",\n  \"adminNotes\": \"Monthly performance bonus\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin-wallet/credit-wallet",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin-wallet", "credit-wallet"]
+            }
+          }
+        },
+        {
+          "name": "Debit Professional Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"professionalId\": \"professional_12345\",\n  \"amount\": 100,\n  \"reason\": \"Penalty for late completion\",\n  \"adminNotes\": \"Customer complaint case\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin-wallet/debit-wallet",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin-wallet", "debit-wallet"]
+            }
+          }
+        },
+        {
+          "name": "Suspend Professional Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"professionalId\": \"professional_12345\",\n  \"reason\": \"Multiple customer complaints\",\n  \"adminNotes\": \"Under investigation\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin-wallet/suspend-wallet",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin-wallet", "suspend-wallet"]
+            }
+          }
+        },
+        {
+          "name": "Reactivate Professional Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"professionalId\": \"professional_12345\",\n  \"reason\": \"Case resolved\",\n  \"adminNotes\": \"Professional completed required improvements\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin-wallet/reactivate-wallet",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin-wallet", "reactivate-wallet"]
+            }
+          }
+        },
+        {
+          "name": "Get Transaction Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin-wallet/transaction-report?type=commission_deducted&page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin-wallet", "transaction-report"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "commission_deducted"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Payment Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin-wallet/payment-analytics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin-wallet", "payment-analytics"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refundId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

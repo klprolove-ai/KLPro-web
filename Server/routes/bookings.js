@@ -521,8 +521,16 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Create booking
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { professionalId, serviceId, scheduledDate, scheduledTime, serviceAddress, price, notes } =
-      req.body;
+    const {
+      professionalId,
+      serviceId,
+      scheduledDate,
+      scheduledTime,
+      serviceAddress,
+      price,
+      notes,
+      paymentMethod,
+    } = req.body;
 
     const professional = await Professional.findById(professionalId).select('_id userId');
     if (!professional) {
@@ -552,6 +560,8 @@ router.post('/', authMiddleware, async (req, res) => {
       serviceAddress,
       price,
       notes,
+      paymentMethod: paymentMethod === 'online' ? 'razorpay' : paymentMethod || 'cash',
+      paymentStatus: 'pending',
       startOtp: generateOtp(),
       auditLogs: [
         {
