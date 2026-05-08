@@ -40,25 +40,32 @@ const normalizePaymentMethod = (value) => {
 // Create Razorpay order for booking
 exports.createOrderForBooking = async (req, res) => {
   try {
+    console.log('[createOrderForBooking] Received request:', { body: req.body, userId: req.user?._id });
+    
     const userId = req.user._id;
     const { bookingId, paymentMethod } = req.body;
     const normalizedPaymentMethod = normalizePaymentMethod(paymentMethod);
 
     if (!bookingId) {
+      console.error('[createOrderForBooking] Missing bookingId');
       return res.status(400).json({ message: 'Booking ID is required' });
     }
 
     // Get booking details
+    console.log('[createOrderForBooking] Fetching booking:', bookingId);
     const booking = await Booking.findById(bookingId).populate('professionalId');
     if (!booking) {
+      console.error('[createOrderForBooking] Booking not found:', bookingId);
       return res.status(404).json({ message: 'Booking not found' });
     }
 
     if (booking.customerId.toString() !== userId.toString()) {
+      console.error('[createOrderForBooking] Unauthorized access attempt');
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
     if (booking.status !== 'pending') {
+      console.error('[createOrderForBooking] Invalid booking status:', booking.status);
       return res.status(400).json({ message: 'Booking status does not allow payment' });
     }
 
@@ -145,21 +152,29 @@ exports.createOrderForBooking = async (req, res) => {
 // Create Razorpay order for product
 exports.createOrderForProduct = async (req, res) => {
   try {
+    console.log('[createOrderForProduct] Received request:', { body: req.body, userId: req.user?._id });
+    
     const userId = req.user._id;
     const { orderId, paymentMethod, amount } = req.body;
     const normalizedPaymentMethod = normalizePaymentMethod(paymentMethod);
 
+    console.log('[createOrderForProduct] Processing with:', { orderId, paymentMethod, normalizedPaymentMethod, amount });
+
     if (!orderId) {
+      console.error('[createOrderForProduct] Missing orderId');
       return res.status(400).json({ message: 'Order ID is required' });
     }
 
     if (!amount || amount <= 0 || isNaN(amount)) {
+      console.error('[createOrderForProduct] Invalid amount:', amount);
       return res.status(400).json({ message: 'Valid amount is required' });
     }
 
     // This would reference your ProductOrder model
     // For now, we'll create a generic payment structure
     const paymentAmount = parseFloat(amount);
+    console.log('[createOrderForProduct] Parsed amount:', paymentAmount);
+    
     const referenceId = mongoose.Types.ObjectId.isValid(orderId)
       ? new mongoose.Types.ObjectId(orderId)
       : new mongoose.Types.ObjectId();
@@ -177,18 +192,20 @@ exports.createOrderForProduct = async (req, res) => {
 
     if (normalizedPaymentMethod === 'razorpay') {
       try {
+        console.log('[createOrderForProduct] Attempting to initialize Razorpay...');
         const rzp = getRazorpayInstance();
         if (!rzp) {
-          console.error('Razorpay not initialized - missing credentials');
-          console.error('RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'SET' : 'MISSING');
-          console.error('RAZORPAY_KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET ? 'SET' : 'MISSING');
+          console.error('[createOrderForProduct] Razorpay not initialized - missing credentials');
+          console.error('[createOrderForProduct] RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'SET' : 'MISSING');
+          console.error('[createOrderForProduct] RAZORPAY_KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET ? 'SET' : 'MISSING');
           return res.status(500).json({ 
             message: 'Razorpay is not configured',
-            error: 'Missing Razorpay credentials (KEY_ID or KEY_SECRET not set)',
+            error: 'Missing Razorpay credentials. Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to environment.',
             code: 'RAZORPAY_CREDENTIALS_MISSING'
           });
         }
         
+        console.log('[createOrderForProduct] Creating Razorpay order with amount:', paymentAmount * 100);
         const razorpayOrder = await rzp.orders.create({
           amount: paymentAmount * 100,
           currency: 'INR',
@@ -199,10 +216,12 @@ exports.createOrderForProduct = async (req, res) => {
           },
         });
 
+        console.log('[createOrderForProduct] Razorpay order created:', razorpayOrder.id);
         payment.razorpayOrderId = razorpayOrder.id;
         payment.status = 'pending';
       } catch (error) {
-        console.error('Razorpay order creation error:', error.message);
+        console.error('[createOrderForProduct] Razorpay order creation error:', error.message);
+        console.error('[createOrderForProduct] Full error:', error);
         return res.status(500).json({ 
           message: 'Failed to create payment order',
           error: error.message,
@@ -211,7 +230,9 @@ exports.createOrderForProduct = async (req, res) => {
       }
     }
 
+    console.log('[createOrderForProduct] Saving payment document...');
     await payment.save();
+    console.log('[createOrderForProduct] Payment saved with ID:', payment._id);
 
     res.status(201).json({
       success: true,
@@ -228,7 +249,8 @@ exports.createOrderForProduct = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error creating payment order:', error);
+    console.error('[createOrderForProduct] Unexpected error:', error.message);
+    console.error('[createOrderForProduct] Full error:', error);
     res.status(500).json({ message: 'Error creating payment order', error: error.message });
   }
 };
