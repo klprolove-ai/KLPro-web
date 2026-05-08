@@ -87,9 +87,13 @@ exports.createOrderForBooking = async (req, res) => {
       try {
         const rzp = getRazorpayInstance();
         if (!rzp) {
+          console.error('Razorpay not initialized - missing credentials');
+          console.error('RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'SET' : 'MISSING');
+          console.error('RAZORPAY_KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET ? 'SET' : 'MISSING');
           return res.status(500).json({ 
             message: 'Razorpay is not configured',
-            error: 'Missing Razorpay credentials' 
+            error: 'Missing Razorpay credentials (KEY_ID or KEY_SECRET not set)',
+            code: 'RAZORPAY_CREDENTIALS_MISSING'
           });
         }
         
@@ -142,16 +146,20 @@ exports.createOrderForBooking = async (req, res) => {
 exports.createOrderForProduct = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { orderId, paymentMethod } = req.body;
+    const { orderId, paymentMethod, amount } = req.body;
     const normalizedPaymentMethod = normalizePaymentMethod(paymentMethod);
 
     if (!orderId) {
       return res.status(400).json({ message: 'Order ID is required' });
     }
 
+    if (!amount || amount <= 0 || isNaN(amount)) {
+      return res.status(400).json({ message: 'Valid amount is required' });
+    }
+
     // This would reference your ProductOrder model
     // For now, we'll create a generic payment structure
-    const paymentAmount = req.body.amount;
+    const paymentAmount = parseFloat(amount);
     const referenceId = mongoose.Types.ObjectId.isValid(orderId)
       ? new mongoose.Types.ObjectId(orderId)
       : new mongoose.Types.ObjectId();
@@ -171,9 +179,13 @@ exports.createOrderForProduct = async (req, res) => {
       try {
         const rzp = getRazorpayInstance();
         if (!rzp) {
+          console.error('Razorpay not initialized - missing credentials');
+          console.error('RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'SET' : 'MISSING');
+          console.error('RAZORPAY_KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET ? 'SET' : 'MISSING');
           return res.status(500).json({ 
             message: 'Razorpay is not configured',
-            error: 'Missing Razorpay credentials' 
+            error: 'Missing Razorpay credentials (KEY_ID or KEY_SECRET not set)',
+            code: 'RAZORPAY_CREDENTIALS_MISSING'
           });
         }
         
@@ -190,10 +202,11 @@ exports.createOrderForProduct = async (req, res) => {
         payment.razorpayOrderId = razorpayOrder.id;
         payment.status = 'pending';
       } catch (error) {
-        console.error('Razorpay order creation error:', error);
+        console.error('Razorpay order creation error:', error.message);
         return res.status(500).json({ 
           message: 'Failed to create payment order',
-          error: error.message 
+          error: error.message,
+          code: 'RAZORPAY_ORDER_CREATION_FAILED'
         });
       }
     }
