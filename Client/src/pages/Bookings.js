@@ -35,6 +35,25 @@ const getProfessionalName = (professionalIdField) => {
   return 'Professional';
 };
 
+const paymentOptions = [
+  {
+    value: 'razorpay',
+    title: 'Online Payment',
+    description: 'Pay securely with Razorpay using UPI, cards, or net banking.',
+    accent: 'online',
+    icon: '💳',
+    badge: 'Recommended',
+  },
+  {
+    value: 'cash',
+    title: 'Cash Payment',
+    description: 'Confirm now and pay the professional at the service location.',
+    accent: 'cash',
+    icon: '💵',
+    badge: 'Pay later',
+  },
+];
+
 function Bookings() {
   const navigate = useNavigate();
   const token = localStorage.getItem('userToken') || localStorage.getItem('token') || '';
@@ -343,6 +362,13 @@ function Bookings() {
     }));
   };
 
+  const handlePaymentMethodSelect = (paymentMethod) => {
+    setFormData((current) => ({
+      ...current,
+      paymentMethod,
+    }));
+  };
+
   const handleSubmitBooking = async (event) => {
     event.preventDefault();
 
@@ -438,6 +464,8 @@ function Bookings() {
     setSuccessMessage('Online payment completed successfully.');
     await refreshBookings();
   };
+
+  const submitButtonLabel = formData.paymentMethod === 'razorpay' ? 'Confirm & Pay Securely' : 'Confirm Booking';
 
   const handleCancelBooking = async (bookingId) => {
     if (!token) {
@@ -592,29 +620,55 @@ function Bookings() {
               />
             </label>
 
-            <fieldset className="full-width">
-              <legend>Payment Method</legend>
-              <label>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="razorpay"
-                  checked={formData.paymentMethod === 'razorpay'}
-                  onChange={handleInputChange}
-                />
-                Online Payment (Razorpay)
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="cash"
-                  checked={formData.paymentMethod === 'cash'}
-                  onChange={handleInputChange}
-                />
-                Cash Payment
-              </label>
-            </fieldset>
+            <section className="payment-method-section full-width">
+              <div className="payment-method-header">
+                <div>
+                  <p className="section-eyebrow">Step 2</p>
+                  <h3>Choose payment method</h3>
+                </div>
+                <span className="payment-method-chip">Secure checkout</span>
+              </div>
+
+              <div className="payment-method-grid" role="radiogroup" aria-label="Payment method">
+                {paymentOptions.map((option) => {
+                  const isSelected = formData.paymentMethod === option.value;
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`payment-option-card ${option.accent} ${isSelected ? 'selected' : ''}`}
+                      onClick={() => handlePaymentMethodSelect(option.value)}
+                      disabled={submitting}
+                      aria-pressed={isSelected}
+                    >
+                      <div className="payment-option-top">
+                        <div className="payment-option-icon" aria-hidden="true">{option.icon}</div>
+                        <span className="payment-option-badge">{option.badge}</span>
+                      </div>
+                      <div className="payment-option-content">
+                        <h4>{option.title}</h4>
+                        <p>{option.description}</p>
+                      </div>
+                      <div className="payment-option-footer">
+                        <span className="payment-option-radio" aria-hidden="true">
+                          <span className="payment-option-radio-dot" />
+                        </span>
+                        <span className="payment-option-cta">
+                          {isSelected ? 'Selected' : 'Select'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="payment-method-note">
+                {formData.paymentMethod === 'razorpay'
+                  ? 'After you click Confirm Booking, Razorpay will open immediately to complete your payment.'
+                  : 'Cash payments will be confirmed immediately after you submit the booking.'}
+              </div>
+            </section>
 
             <label className="full-width">
               Notes (optional)
@@ -675,7 +729,7 @@ function Bookings() {
               Change Professional
             </button>
             <button type="submit" className="btn-primary" disabled={submitting || loading}>
-              {submitting ? 'Confirming...' : 'Confirm Booking'}
+              {submitting ? 'Confirming...' : submitButtonLabel}
             </button>
           </div>
         </form>

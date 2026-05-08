@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import API_BASE_URL from '../../config/apiConfig';
 import './PaymentIntegration.css';
 
 const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
@@ -7,6 +8,7 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const autoStartRef = useRef(false);
 
   // Initialize Razorpay script
   useEffect(() => {
@@ -17,13 +19,41 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
     return () => document.body.removeChild(script);
   }, []);
 
-  const handleRazorpayPayment = async () => {
+  const verifyPayment = useCallback(async (razorpayResponse) => {
+      try {
+        const token = localStorage.getItem('token');
+
+        const verifyResponse = await axios.post(`${API_BASE_URL}/payment/verify`,
+          {
+            razorpay_order_id: razorpayResponse.razorpay_order_id || razorpayResponse.razorpayOrderId,
+            razorpay_payment_id: razorpayResponse.razorpay_payment_id || razorpayResponse.razorpayPaymentId,
+            razorpay_signature: razorpayResponse.razorpay_signature || razorpayResponse.razorpaySignature,
+            paymentId: razorpayResponse.paymentId,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setSuccess('Payment successful!');
+        setPaymentMethod(null);
+        setTimeout(() => {
+          if (onPaymentComplete) {
+            onPaymentComplete(verifyResponse.data);
+          }
+        }, 1500);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Payment verification failed');
+      } finally {
+        setProcessing(false);
+      }
+    }, [onPaymentComplete]);
+
+  const handleRazorpayPayment = useCallback(async () => {
     try {
       setProcessing(true);
       const token = localStorage.getItem('token');
 
       // Create order
-      const orderResponse = await axios.post('/api/payment/create-order-booking', 
+      const orderResponse = await axios.post(`${API_BASE_URL}/payment/create-order-booking`, 
         { 
           bookingId,
           amount,
@@ -65,42 +95,14 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
       setError(err.response?.data?.message || 'Failed to create payment order');
       setProcessing(false);
     }
-  };
+  }, [amount, bookingId, verifyPayment]);
 
-  const verifyPayment = async (razorpayResponse) => {
-    try {
-      const token = localStorage.getItem('token');
-
-      const verifyResponse = await axios.post('/api/payment/verify',
-        {
-          razorpay_order_id: razorpayResponse.razorpay_order_id || razorpayResponse.razorpayOrderId,
-          razorpay_payment_id: razorpayResponse.razorpay_payment_id || razorpayResponse.razorpayPaymentId,
-          razorpay_signature: razorpayResponse.razorpay_signature || razorpayResponse.razorpaySignature,
-          paymentId: razorpayResponse.paymentId,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setSuccess('Payment successful!');
-      setPaymentMethod(null);
-      setTimeout(() => {
-        if (onPaymentComplete) {
-          onPaymentComplete(verifyResponse.data);
-        }
-      }, 1500);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Payment verification failed');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleCashPayment = async () => {
+  const handleCashPayment = useCallback(async () => {
     try {
       setProcessing(true);
       const token = localStorage.getItem('token');
 
-      const response = await axios.post('/api/payment/create-cash-payment',
+      const response = await axios.post(`${API_BASE_URL}/payment/create-cash-payment`,
         {
           bookingId,
           amount
@@ -120,7 +122,21 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
     } finally {
       setProcessing(false);
     }
-  };
+  }, [amount, bookingId, onPaymentComplete]);
+
+  useEffect(() => {
+    if (!bookingId || !amount) return;
+    if (!paymentMethod) {
+      setPaymentMethod('razorpay');
+      return;
+    }
+
+    if (paymentMethod !== 'razorpay') return;
+    if (autoStartRef.current) return;
+
+    autoStartRef.current = true;
+    handleRazorpayPayment();
+  }, [amount, bookingId, paymentMethod, handleRazorpayPayment]);
 
   return (
     <div className="payment-integration">
