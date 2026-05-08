@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../../config/apiConfig';
 import './AdminDashboard.css';
@@ -13,11 +13,7 @@ const AdminDashboard = () => {
   const [period, setPeriod] = useState('monthly');
   const [selectedTab, setSelectedTab] = useState('overview');
 
-  useEffect(() => {
-    fetchAdminData();
-  }, [period]);
-
-  const fetchAdminData = async () => {
+  const fetchAdminData = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
@@ -41,7 +37,11 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [period]);
+
+  useEffect(() => {
+    fetchAdminData();
+  }, [fetchAdminData]);
 
   const formatCurrency = (amount) => {
     return (amount || 0).toLocaleString('en-IN', {

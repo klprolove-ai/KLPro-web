@@ -4,7 +4,6 @@ import API_BASE_URL from '../../config/apiConfig';
 import './ProductPaymentIntegration.css';
 
 const ProductPaymentIntegration = ({ orderId, amount, items, shippingDetails, onPaymentComplete }) => {
-  const [orderDetails, setOrderDetails] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [processing, setProcessing] = useState(false);
@@ -47,7 +46,6 @@ const ProductPaymentIntegration = ({ orderId, amount, items, shippingDetails, on
       );
 
       const { razorpayOrderId, razorpayKey, keyId } = response.data.data;
-      setOrderDetails(response.data.data);
 
       if (!window.Razorpay) {
         throw new Error('Razorpay library not loaded');
