@@ -35,6 +35,14 @@ const normalizePaymentMethod = (value) => {
   return 'razorpay';
 };
 
+const buildRazorpayReceipt = (prefix, referenceId) => {
+  const cleanReference = String(referenceId || '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(-12);
+  const shortTimestamp = Date.now().toString().slice(-6);
+  return `${prefix}_${cleanReference}_${shortTimestamp}`;
+};
+
 // ============ PAYMENT CREATION ============
 
 // Create Razorpay order for booking
@@ -108,7 +116,7 @@ exports.createOrderForBooking = async (req, res) => {
         const razorpayOrder = await rzp.orders.create({
           amount: bookingAmount * 100, // Razorpay expects amount in paise
           currency: 'INR',
-          receipt: `booking_${bookingId}_${Date.now()}`,
+          receipt: buildRazorpayReceipt('book', bookingId),
           notes: {
             bookingId,
             customerId: userId.toString(),
@@ -209,7 +217,7 @@ exports.createOrderForProduct = async (req, res) => {
         const razorpayOrder = await rzp.orders.create({
           amount: paymentAmount * 100,
           currency: 'INR',
-          receipt: `product_${orderId}_${Date.now()}`,
+          receipt: buildRazorpayReceipt('prod', orderId),
           notes: {
             orderId,
             customerId: userId.toString(),
