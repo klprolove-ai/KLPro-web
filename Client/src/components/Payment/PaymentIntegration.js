@@ -3,12 +3,12 @@ import axios from 'axios';
 import API_BASE_URL from '../../config/apiConfig';
 import './PaymentIntegration.css';
 
-const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
-  const [paymentMethod, setPaymentMethod] = useState(null);
+const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayment = null }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [processing, setProcessing] = useState(false);
   const autoStartRef = useRef(false);
+  const paymentTimeoutRef = useRef(null);
 
   // Initialize Razorpay script
   useEffect(() => {
@@ -34,7 +34,6 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
         );
 
         setSuccess('Payment successful!');
-        setPaymentMethod(null);
         setTimeout(() => {
           if (onPaymentComplete) {
             onPaymentComplete(verifyResponse.data);
@@ -52,18 +51,31 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
       setProcessing(true);
       const token = localStorage.getItem('token');
 
-      // Create order
-      const orderResponse = await axios.post(`${API_BASE_URL}/payment/create-order-booking`, 
-        { 
-          bookingId,
-          amount,
-          paymentMethod: 'razorpay',
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      let razorpayOrderId = null;
+      let paymentId = null;
+      let resolvedKey = process.env.REACT_APP_RAZORPAY_KEY || null;
 
-      const { razorpayOrderId, razorpayKey, keyId, paymentId } = orderResponse.data;
-      const resolvedKey = razorpayKey || keyId;
+      // If server already returned initial payment info (from booking creation), use that and skip create-order
+      if (initialPayment && initialPayment.razorpayOrderId) {
+        razorpayOrderId = initialPayment.razorpayOrderId;
+        paymentId = initialPayment.paymentId || initialPayment._id || null;
+        resolvedKey = initialPayment.razorpayKey || initialPayment.keyId || resolvedKey;
+      } else {
+        // Create order
+        const orderResponse = await axios.post(`${API_BASE_URL}/payment/create-order-booking`, 
+          { 
+            bookingId,
+            amount,
+            paymentMethod: 'razorpay',
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const { razorpayOrderId: rzpOrder, razorpayKey, keyId, paymentId: pId } = orderResponse.data?.data || orderResponse.data || {};
+        razorpayOrderId = rzpOrder || orderResponse.data?.razorpayOrderId || orderResponse.data?.data?.razorpayOrderId;
+        paymentId = pId || orderResponse.data?.paymentId || orderResponse.data?.data?.paymentId;
+        resolvedKey = razorpayKey || keyId || resolvedKey;
+      }
 
       // Open Razorpay checkout
       const options = {
@@ -74,6 +86,9 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
         description: `Booking #${bookingId}`,
         order_id: razorpayOrderId,
         handler: async (response) => {
+          if (paymentTimeoutRef.current) {
+            clearTimeout(paymentTimeoutRef.current);
+          }
           await verifyPayment({
             ...response,
             paymentId,
@@ -90,53 +105,84 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
       };
 
       const rzp = new window.Razorpay(options);
+      
+      // Handle payment cancellation
+      rzp.on('payment.failed', (response) => {
+        console.log('Payment failed:', response);
+        if (paymentTimeoutRef.current) {
+          clearTimeout(paymentTimeoutRef.current);
+        }
+        setError('Payment failed. Please try again.');
+        setProcessing(false);
+      });
+
+      // Handle modal dismissal (user cancelled)
+      rzp.on('dismiss', async () => {
+        console.log('Payment modal dismissed by user for booking:', bookingId);
+        if (paymentTimeoutRef.current) {
+          clearTimeout(paymentTimeoutRef.current);
+        }
+        try {
+          const token = localStorage.getItem('token');
+          console.log('Token available:', !!token);
+          console.log('Attempting to cancel booking:', bookingId);
+          
+          const cancelResponse = await axios.post(`${API_BASE_URL}/bookings/${bookingId}/cancel`,
+            {},
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          
+          console.log('Booking cancelled successfully:', cancelResponse.data);
+          setError('Payment cancelled. Booking has been cancelled.');
+          setTimeout(() => {
+            if (onPaymentComplete) {
+              onPaymentComplete({ cancelled: true });
+            }
+          }, 2000);
+        } catch (cancelErr) {
+          console.error('Failed to cancel booking:', cancelErr);
+          setError('Payment cancelled, but booking may still be pending. Please contact support.');
+        }
+        setProcessing(false);
+      });
+
       rzp.open();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create payment order');
       setProcessing(false);
     }
-  }, [amount, bookingId, verifyPayment]);
-
-  const handleCashPayment = useCallback(async () => {
-    try {
-      setProcessing(true);
-      const token = localStorage.getItem('token');
-
-      const response = await axios.post(`${API_BASE_URL}/payment/create-cash-payment`,
-        {
-          bookingId,
-          amount
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setSuccess('Cash payment recorded. Please pay at the service location.');
-      setPaymentMethod(null);
-      setTimeout(() => {
-        if (onPaymentComplete) {
-          onPaymentComplete(response.data);
-        }
-      }, 1500);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to record cash payment');
-    } finally {
-      setProcessing(false);
-    }
-  }, [amount, bookingId, onPaymentComplete]);
+  }, [amount, bookingId, verifyPayment, initialPayment, onPaymentComplete]);
 
   useEffect(() => {
     if (!bookingId || !amount) return;
-    if (!paymentMethod) {
-      setPaymentMethod('razorpay');
-      return;
-    }
-
-    if (paymentMethod !== 'razorpay') return;
     if (autoStartRef.current) return;
 
     autoStartRef.current = true;
+    
+    // Set a timeout to cancel booking if payment is not completed within 5 minutes
+    paymentTimeoutRef.current = setTimeout(async () => {
+      console.log('Payment timeout reached, cancelling booking:', bookingId);
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(`${API_BASE_URL}/bookings/${bookingId}/cancel`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setError('Payment timed out. Booking has been cancelled.');
+        setTimeout(() => {
+          if (onPaymentComplete) {
+            onPaymentComplete({ cancelled: true, timeout: true });
+          }
+        }, 2000);
+      } catch (cancelErr) {
+        console.error('Failed to cancel booking on timeout:', cancelErr);
+        setError('Payment timed out, but booking may still be pending. Please contact support.');
+      }
+      setProcessing(false);
+    }, 5 * 60 * 1000); // 5 minutes
+
     handleRazorpayPayment();
-  }, [amount, bookingId, paymentMethod, handleRazorpayPayment]);
+  }, [amount, bookingId, handleRazorpayPayment, onPaymentComplete]);
 
   return (
     <div className="payment-integration">
@@ -150,83 +196,26 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete }) => {
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
-      {!paymentMethod ? (
-        <div className="payment-methods">
-          <button
-            className="method-card razorpay"
-            onClick={() => setPaymentMethod('razorpay')}
-            disabled={processing}
-          >
-            <div className="method-icon">💳</div>
-            <div className="method-name">Online Payment</div>
-            <div className="method-desc">Cards, UPI, Net Banking</div>
-          </button>
-
-          <button
-            className="method-card cash"
-            onClick={() => setPaymentMethod('cash')}
-            disabled={processing}
-          >
-            <div className="method-icon">💵</div>
-            <div className="method-name">Cash Payment</div>
-            <div className="method-desc">Pay at service location</div>
-          </button>
+      <div className="payment-processing">
+        <div className="processing-content">
+          <h4>Processing Online Payment</h4>
+          <p>Opening secure payment gateway...</p>
+          {processing && (
+            <div className="processing-indicator">
+              <div className="spinner"></div>
+              <p>Please wait while we redirect you to the payment gateway</p>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="payment-confirmation">
-          <div className="confirmation-content">
-            {paymentMethod === 'razorpay' && (
-              <>
-                <h4>Online Payment</h4>
-                <p>You will be redirected to secure payment gateway</p>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleRazorpayPayment}
-                  disabled={processing}
-                >
-                  {processing ? 'Opening...' : 'Proceed to Payment'}
-                </button>
-              </>
-            )}
-
-            {paymentMethod === 'cash' && (
-              <>
-                <h4>Cash Payment</h4>
-                <p>Please confirm that you will pay ₹{amount} in cash at the service location</p>
-                <div className="cash-details">
-                  <p><strong>Amount:</strong> ₹{amount}</p>
-                  <p><strong>Payment Location:</strong> Service location</p>
-                  <p><strong>Note:</strong> Keep proof of payment for your records</p>
-                </div>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleCashPayment}
-                  disabled={processing}
-                >
-                  {processing ? 'Confirming...' : 'Confirm Cash Payment'}
-                </button>
-              </>
-            )}
-
-            <button
-              className="btn btn-secondary"
-              onClick={() => setPaymentMethod(null)}
-              disabled={processing}
-            >
-              Change Method
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Payment Info */}
       <div className="payment-info">
         <h4>💡 Payment Information</h4>
         <ul>
           <li>All payments are secure and encrypted</li>
-          <li>For Razorpay: You will receive SMS confirmation</li>
-          <li>For Cash: Keep the receipt for your records</li>
-          <li>Processing time: Instant for online, immediate for cash</li>
+          <li>You will receive SMS confirmation after payment</li>
+          <li>Processing time: Instant for online payments</li>
         </ul>
       </div>
     </div>

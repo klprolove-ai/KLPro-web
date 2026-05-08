@@ -9,6 +9,7 @@ const Refund = require('../models/Refund');
 const Booking = require('../models/Booking');
 const Professional = require('../models/Professional');
 const User = require('../models/User');
+const { emitToUser, emitGlobal } = require('../realtime/presence');
 
 // Lazy initialize Razorpay - only when needed
 let razorpay = null;
@@ -72,8 +73,16 @@ exports.createOrderForBooking = async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    if (booking.status !== 'pending') {
-      console.error('[createOrderForBooking] Invalid booking status:', booking.status);
+    const bookingStatus = String(booking.status || '').toLowerCase();
+    const bookingPaymentStatus = String(booking.paymentStatus || '').toLowerCase();
+
+    if (bookingPaymentStatus === 'completed') {
+      console.error('[createOrderForBooking] Booking payment already completed:', booking._id);
+      return res.status(400).json({ message: 'Payment is already completed for this booking' });
+    }
+
+    if (['cancelled', 'rejected'].includes(bookingStatus)) {
+      console.error('[createOrderForBooking] Invalid booking status for payment:', booking.status);
       return res.status(400).json({ message: 'Booking status does not allow payment' });
     }
 
@@ -356,11 +365,35 @@ exports.verifyPayment = async (req, res) => {
 async function processBookingPayment(payment) {
   try {
     // Update booking status
-    const booking = await Booking.findById(payment.referenceId);
+    const booking = await Booking.findById(payment.referenceId).populate('professionalId', 'userId');
     if (booking) {
       booking.paymentStatus = 'completed';
       booking.paymentMethod = 'razorpay';
       await booking.save();
+
+      const professionalUserId = String(booking.professionalId?.userId || '');
+      if (professionalUserId) {
+        emitToUser(professionalUserId, 'booking-request-created', {
+          bookingId: String(booking._id),
+          scheduledDate: booking.scheduledDate,
+          scheduledTime: booking.scheduledTime,
+          customerId: String(booking.customerId),
+        });
+      }
+
+      emitGlobal('booking-status-changed', {
+        bookingId: String(booking._id),
+        professionalId: String(booking.professionalId?._id || ''),
+        status: 'pending',
+        at: new Date().toISOString(),
+      });
+
+      emitGlobal('professionals-availability-updated', {
+        professionalId: String(booking.professionalId?._id || ''),
+        status: 'blocked',
+        reason: 'booking-payment-completed',
+        at: new Date().toISOString(),
+      });
     }
 
     // Credit professional wallet

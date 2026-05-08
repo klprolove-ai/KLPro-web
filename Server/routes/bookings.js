@@ -8,6 +8,8 @@ const cloudinary = require('../config/cloudinary');
 const heicConvert = require('heic-convert');
 const { emitToUser, emitGlobal } = require('../realtime/presence');
 const { endCallSession } = require('../services/callSessionService');
+const Razorpay = require('razorpay');
+const Payment = require('../models/Payment');
 
 const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
 const ACTIVE_BLOCKING_STATUSES = ['pending', 'confirmed', 'in-progress'];
@@ -154,7 +156,18 @@ router.get('/professional/my-jobs', authMiddleware, async (req, res) => {
       .populate('serviceId', 'name basePrice category subCategory')
       .sort({ createdAt: -1 });
 
-    const sanitizedBookings = bookings.map((booking) => sanitizeBookingForProfessional(booking));
+    const visibleBookings = bookings.filter((booking) => {
+      const paymentMethod = String(booking.paymentMethod || '').toLowerCase();
+      const paymentStatus = String(booking.paymentStatus || '').toLowerCase();
+
+      if (paymentMethod === 'razorpay') {
+        return paymentStatus === 'completed';
+      }
+
+      return true;
+    });
+
+    const sanitizedBookings = visibleBookings.map((booking) => sanitizeBookingForProfessional(booking));
 
     res.json({
       professionalId: professional._id,
@@ -171,7 +184,6 @@ router.get('/public/professional/:professionalId/slots', async (req, res) => {
   try {
     const { professionalId } = req.params;
     const selectedDate = String(req.query.date || '').trim();
-
     if (!selectedDate) {
       return res.status(400).json({ message: 'date is required' });
     }
@@ -181,13 +193,18 @@ router.get('/public/professional/:professionalId/slots', async (req, res) => {
       return res.status(404).json({ message: 'Professional not found' });
     }
 
+    const dateRange = {
+      $gte: startOfDay(selectedDate),
+      $lte: endOfDay(selectedDate),
+    };
+
     const bookings = await Booking.find({
       professionalId,
-      scheduledDate: {
-        $gte: startOfDay(selectedDate),
-        $lte: endOfDay(selectedDate),
-      },
-      status: { $in: ACTIVE_BLOCKING_STATUSES },
+      scheduledDate: dateRange,
+      $or: [
+        { paymentMethod: { $ne: 'razorpay' }, status: { $in: ACTIVE_BLOCKING_STATUSES } },
+        { paymentMethod: 'razorpay', paymentStatus: { $ne: 'pending' }, status: { $in: ACTIVE_BLOCKING_STATUSES } },
+      ],
     })
       .select('_id scheduledTime status customerId')
       .sort({ scheduledTime: 1 });
@@ -227,6 +244,12 @@ router.put('/professional/:id/status', authMiddleware, async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found for this professional' });
+    }
+
+    const paymentMethod = String(booking.paymentMethod || '').toLowerCase();
+    const paymentStatus = String(booking.paymentStatus || '').toLowerCase();
+    if (paymentMethod === 'razorpay' && paymentStatus !== 'completed') {
+      return res.status(400).json({ message: 'Online payment must be completed before approval or rejection' });
     }
 
     booking.status = status;
@@ -537,14 +560,19 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Professional not found' });
     }
 
+    const dateRange = {
+      $gte: startOfDay(scheduledDate),
+      $lte: endOfDay(scheduledDate),
+    };
+
     const conflict = await Booking.findOne({
       professionalId,
       scheduledTime,
-      scheduledDate: {
-        $gte: startOfDay(scheduledDate),
-        $lte: endOfDay(scheduledDate),
-      },
-      status: { $in: ACTIVE_BLOCKING_STATUSES },
+      scheduledDate: dateRange,
+      $or: [
+        { paymentMethod: { $ne: 'razorpay' }, status: { $in: ACTIVE_BLOCKING_STATUSES } },
+        { paymentMethod: 'razorpay', paymentStatus: { $ne: 'pending' }, status: { $in: ACTIVE_BLOCKING_STATUSES } },
+      ],
     });
 
     if (conflict) {
@@ -574,6 +602,78 @@ router.post('/', authMiddleware, async (req, res) => {
     });
     await booking.save();
 
+    // If customer chose online payment (Razorpay), create a payment + razorpay order
+    const pmethod = String(booking.paymentMethod || '').toLowerCase();
+    if (pmethod === 'razorpay') {
+      try {
+        if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+          // Rollback booking - do not leave pending booking when payment cannot be initiated
+          await Booking.findByIdAndDelete(booking._id).catch(() => {});
+          return res.status(500).json({ message: 'Payment gateway not configured. Please try later.' });
+        }
+
+        const rzp = new Razorpay({
+          key_id: process.env.RAZORPAY_KEY_ID,
+          key_secret: process.env.RAZORPAY_KEY_SECRET,
+        });
+
+        const buildRazorpayReceipt = (prefix, referenceId) => {
+          const cleanReference = String(referenceId || '')
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .slice(-12);
+          const shortTimestamp = Date.now().toString().slice(-6);
+          return `${prefix}_${cleanReference}_${shortTimestamp}`;
+        };
+
+        const bookingAmount = booking.price;
+
+        // Create payment record
+        const payment = new Payment({
+          userId: req.userId,
+          amount: bookingAmount,
+          paymentMethod: 'razorpay',
+          referenceType: 'booking',
+          referenceId: booking._id,
+          status: 'initiated',
+          professionalId: booking.professionalId,
+          description: `Payment for booking #${booking._id}`,
+        });
+
+        const razorpayOrder = await rzp.orders.create({
+          amount: bookingAmount * 100,
+          currency: 'INR',
+          receipt: buildRazorpayReceipt('book', booking._id),
+          notes: {
+            bookingId: String(booking._id),
+            customerId: String(req.userId),
+          },
+        });
+
+        payment.razorpayOrderId = razorpayOrder.id;
+        payment.status = 'pending';
+        await payment.save();
+
+        // Return booking + payment info so client can open checkout
+        return res.status(201).json({
+          ...booking.toObject(),
+          message: 'Booking created. Proceed to payment.',
+          payment: {
+            paymentId: payment._id,
+            razorpayOrderId: payment.razorpayOrderId,
+            razorpayKey: process.env.RAZORPAY_KEY_ID,
+            amount: bookingAmount,
+            currency: 'INR',
+          },
+        });
+      } catch (err) {
+        // Rollback booking on any payment initiation failure
+        await Booking.findByIdAndDelete(booking._id).catch(() => {});
+        console.error('Failed to initiate payment for booking:', err);
+        return res.status(500).json({ message: 'Failed to initiate online payment', error: err.message });
+      }
+    }
+
+    // For non-online payments (cash etc.), notify professional as before
     emitToUser(String(professional.userId), 'booking-request-created', {
       bookingId: String(booking._id),
       scheduledDate: booking.scheduledDate,

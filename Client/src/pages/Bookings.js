@@ -433,7 +433,8 @@ function Bookings() {
 
       localStorage.removeItem('bookingDraft');
       if (formData.paymentMethod === 'razorpay') {
-        setPendingPaymentBooking({ bookingId: createdBooking?._id, amount: parsedPrice });
+        const initialPayment = createdBooking?.payment || null;
+        setPendingPaymentBooking({ bookingId: createdBooking?._id, amount: initialPayment?.amount || parsedPrice, initialPayment });
         setSuccessMessage('Booking request created. Complete your Razorpay payment below to confirm payment status.');
       } else {
         setPendingPaymentBooking(null);
@@ -459,9 +460,13 @@ function Bookings() {
     }
   };
 
-  const handlePaymentComplete = async () => {
+  const handlePaymentComplete = async (result = {}) => {
     setPendingPaymentBooking(null);
-    setSuccessMessage('Online payment completed successfully.');
+    if (result.cancelled) {
+      setSuccessMessage('Payment cancelled. Booking has been cancelled.');
+    } else {
+      setSuccessMessage('Online payment completed successfully.');
+    }
     await refreshBookings();
   };
 
@@ -739,6 +744,7 @@ function Bookings() {
             <PaymentIntegration
               bookingId={pendingPaymentBooking.bookingId}
               amount={pendingPaymentBooking.amount}
+              initialPayment={pendingPaymentBooking.initialPayment}
               onPaymentComplete={handlePaymentComplete}
             />
           </div>

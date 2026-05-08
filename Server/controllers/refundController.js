@@ -6,10 +6,21 @@ const Transaction = require('../models/Transaction');
 const Booking = require('../models/Booking');
 const Professional = require('../models/Professional');
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Lazy initialize Razorpay - only when needed
+let razorpay = null;
+const getRazorpayInstance = () => {
+  if (!razorpay) {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      console.warn('Razorpay credentials not configured in environment variables');
+      return null;
+    }
+    razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+  }
+  return razorpay;
+};
 
 // ============ REFUND OPERATIONS ============
 
@@ -246,8 +257,12 @@ async function processRefund(refund) {
 
     if (payment.paymentMethod === 'razorpay' && payment.razorpayPaymentId) {
       // Process Razorpay refund
+      const rzpInstance = getRazorpayInstance();
+      if (!rzpInstance) {
+        throw new Error('Razorpay not configured');
+      }
       try {
-        const razorpayRefund = await razorpay.payments.refund(
+        const razorpayRefund = await rzpInstance.payments.refund(
           payment.razorpayPaymentId,
           {
             amount: refund.amount * 100, // Amount in paise
