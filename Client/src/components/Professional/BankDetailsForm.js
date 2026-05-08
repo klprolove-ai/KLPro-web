@@ -17,6 +17,10 @@ const BankDetailsForm = () => {
   const [success, setSuccess] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
 
+  const maskedAccountNumber = String(bankDetails?.accountNumber || '');
+  const maskedAccountSuffix = maskedAccountNumber ? maskedAccountNumber.slice(-4) : '----';
+  const verificationStatus = String(bankDetails?.verificationStatus || 'pending');
+
   useEffect(() => {
     fetchBankDetails();
   }, []);
@@ -28,13 +32,13 @@ const BankDetailsForm = () => {
       const response = await axios.get(`${API_BASE_URL}/wallet/bank-details`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (response.data) {
-        setBankDetails(response.data);
+      if (response.data?.data) {
+        setBankDetails(response.data.data);
         setFormData({
-          accountNumber: response.data.accountNumber || '',
-          ifscCode: response.data.ifscCode || '',
-          upiId: response.data.upiId || '',
-          paymentMethods: response.data.paymentMethods || []
+          accountNumber: response.data.data.accountNumber || '',
+          ifscCode: response.data.data.ifscCode || '',
+          upiId: response.data.data.upiId || '',
+          paymentMethods: response.data.data.paymentMethods || []
         });
         setIsEditing(false);
       }
@@ -148,7 +152,7 @@ const BankDetailsForm = () => {
         <div className="bank-details-display">
           <div className="detail-row">
             <span className="label">Account Number:</span>
-            <span className="value">****{bankDetails.accountNumber.slice(-4)}</span>
+            <span className="value">****{maskedAccountSuffix}</span>
           </div>
           <div className="detail-row">
             <span className="label">IFSC Code:</span>
@@ -162,8 +166,8 @@ const BankDetailsForm = () => {
           )}
           <div className="detail-row">
             <span className="label">Status:</span>
-            <span className={`status-badge ${bankDetails.verificationStatus}`}>
-              {bankDetails.verificationStatus?.charAt(0).toUpperCase() + bankDetails.verificationStatus?.slice(1)}
+            <span className={`status-badge ${verificationStatus}`}>
+              {verificationStatus.charAt(0).toUpperCase() + verificationStatus.slice(1)}
             </span>
           </div>
           <div className="detail-row">
