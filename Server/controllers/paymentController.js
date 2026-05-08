@@ -10,11 +10,21 @@ const Booking = require('../models/Booking');
 const Professional = require('../models/Professional');
 const User = require('../models/User');
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Lazy initialize Razorpay - only when needed
+let razorpay = null;
+const getRazorpayInstance = () => {
+  if (!razorpay) {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      console.warn('Razorpay credentials not configured in environment variables');
+      return null;
+    }
+    razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+  }
+  return razorpay;
+};
 
 const COMMISSION_PERCENTAGE = parseInt(process.env.COMMISSION_PERCENTAGE) || 10;
 
@@ -75,8 +85,16 @@ exports.createOrderForBooking = async (req, res) => {
 
     if (normalizedPaymentMethod === 'razorpay') {
       try {
+        const rzp = getRazorpayInstance();
+        if (!rzp) {
+          return res.status(500).json({ 
+            message: 'Razorpay is not configured',
+            error: 'Missing Razorpay credentials' 
+          });
+        }
+        
         // Create Razorpay order
-        const razorpayOrder = await razorpay.orders.create({
+        const razorpayOrder = await rzp.orders.create({
           amount: bookingAmount * 100, // Razorpay expects amount in paise
           currency: 'INR',
           receipt: `booking_${bookingId}_${Date.now()}`,
@@ -151,7 +169,15 @@ exports.createOrderForProduct = async (req, res) => {
 
     if (normalizedPaymentMethod === 'razorpay') {
       try {
-        const razorpayOrder = await razorpay.orders.create({
+        const rzp = getRazorpayInstance();
+        if (!rzp) {
+          return res.status(500).json({ 
+            message: 'Razorpay is not configured',
+            error: 'Missing Razorpay credentials' 
+          });
+        }
+        
+        const razorpayOrder = await rzp.orders.create({
           amount: paymentAmount * 100,
           currency: 'INR',
           receipt: `product_${orderId}_${Date.now()}`,
@@ -240,8 +266,11 @@ exports.verifyPayment = async (req, res) => {
       return res.status(404).json({ message: 'Payment record not found' });
     }
 
-    // Update payment with Razorpay details
-    payment.razorpayPaymentId = resolvedPaymentId;
+    // Updatrzp = getRazorpayInstance();
+      if (rzp && resolvedPaymentId) {
+        const paymentDetails = await rzp.payments.fetch(resolvedPaymentId);
+        payment.gatewayResponse = paymentDetails;
+      }Id;
     payment.razorpaySignature = resolvedSignature;
     payment.status = 'completed';
     payment.completedAt = new Date();
