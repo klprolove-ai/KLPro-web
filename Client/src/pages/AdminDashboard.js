@@ -36,6 +36,9 @@ function AdminDashboard() {
   const [showHomepageCardForm, setShowHomepageCardForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [bookingActionLoadingId, setBookingActionLoadingId] = useState(null);
+  const [productOrders, setProductOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderActionLoadingId, setOrderActionLoadingId] = useState(null);
   const [kycCallingId, setKycCallingId] = useState('');
   const [kycScheduleDrafts, setKycScheduleDrafts] = useState({});
   const navigate = useNavigate();
@@ -55,6 +58,7 @@ function AdminDashboard() {
       fetchProducts(),
       fetchProfessionalApplications(),
       fetchBookings(),
+      fetchProductOrders(),
       fetchContacts(),
       fetchHomepageCards()
     ]).catch(err => {
@@ -88,6 +92,7 @@ function AdminDashboard() {
       fetchProducts(),
       fetchProfessionalApplications(),
       fetchBookings(),
+      fetchProductOrders(),
       fetchContacts(),
       fetchHomepageCards(),
     ]);
@@ -237,6 +242,23 @@ function AdminDashboard() {
     setBookings(data.bookings || []);
   };
 
+  const fetchProductOrders = async () => {
+    const token = localStorage.getItem('adminToken');
+    const response = await fetch(`${API_BASE_URL}/admin/orders`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch orders');
+    }
+
+    const data = await response.json();
+    setProductOrders(data.orders || []);
+  };
+
   const handleSelectBooking = async (booking) => {
     const bookingId = String(booking?._id || booking?.id || '');
     if (!bookingId) return;
@@ -260,6 +282,63 @@ function AdminDashboard() {
       setSelectedBooking(data.booking || null);
     } catch (bookingError) {
       setError(bookingError.message || 'Failed to load booking details');
+    }
+  };
+
+  const handleSelectOrder = async (order) => {
+    const orderId = String(order?._id || order?.id || '');
+    if (!orderId) return;
+
+    setSelectedOrder(order || null);
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/admin/orders/${orderId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load order details');
+      }
+
+      const data = await response.json();
+      setSelectedOrder(data.order || null);
+    } catch (orderError) {
+      setError(orderError.message || 'Failed to load order details');
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    if (!orderId) return;
+
+    try {
+      setOrderActionLoadingId(orderId);
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/admin/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderStatus: newStatus }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to update order status');
+      }
+
+      const data = await response.json();
+      setSelectedOrder(data.order || null);
+      setProductOrders((prev) => prev.map((order) => (String(order._id) === String(orderId) ? data.order : order)));
+      alert('Order status updated successfully');
+    } catch (orderUpdateError) {
+      setError(orderUpdateError.message || 'Failed to update order status');
+    } finally {
+      setOrderActionLoadingId(null);
     }
   };
 
@@ -928,7 +1007,8 @@ function AdminDashboard() {
 
   const sidebarItems = [
     { id: 'shop', icon: '🛍️', label: 'Shop', count: statistics?.totalUsers || 0 },
-    { id: 'orders', icon: '📦', label: 'Orders', count: bookings.length },
+    { id: 'orders', icon: '📦', label: 'Orders', count: productOrders.length },
+    { id: 'bookings', icon: '📅', label: 'Bookings', count: bookings.length },
     { id: 'wallet', icon: '💰', label: 'Wallet', count: null },
     { id: 'customers', icon: '👥', label: 'Customers', count: customerUsers.length },
     { id: 'contacts', icon: '✉️', label: 'Contacts', count: contacts.length },
@@ -1157,6 +1237,154 @@ function AdminDashboard() {
               <section className="users-section">
                 <div className="users-header">
                   <h2>Orders</h2>
+                  <button type="button" className="theme-toggle-btn" onClick={fetchProductOrders}>Refresh</button>
+                </div>
+                <div className="order-workspace">
+                  <div className="order-list-panel">
+                    <div className="order-list-panel__header">
+                      <h3>Order History</h3>
+                      <p>Select an order to inspect shipping, payment, and status details.</p>
+                    </div>
+
+                    <div className="services-list order-services-list">
+                      {productOrders.length === 0 ? (
+                        <p>No orders found.</p>
+                      ) : (
+                        productOrders.map((order) => (
+                          <div
+                            key={order._id}
+                            className={`service-item order-card ${selectedOrder && String(selectedOrder._id) === String(order._id) ? 'selected' : ''}`}
+                            onClick={() => handleSelectOrder(order)}
+                          >
+                            <div className="service-item-info">
+                              <h4>Order #{order._id.slice(-6)}</h4>
+                              <p>Order Status: {order.orderStatus}</p>
+                              <p>Payment Status: {order.paymentStatus}</p>
+                              <p>Customer: {order?.customerId?.name || 'N/A'}</p>
+                              <p>Total: ₹{order.total?.toFixed?.(2) ?? order.total}</p>
+                            </div>
+                            <div className="service-item-actions order-card__actions">
+                              <button
+                                type="button"
+                                className="btn-view"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleSelectOrder(order);
+                                }}
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <aside className={`booking-detail-panel ${selectedOrder ? 'is-open' : 'is-empty'}`}>
+                    {selectedOrder ? (
+                      <>
+                        <div className="booking-detail-panel__header">
+                          <div>
+                            <p className="booking-detail-panel__eyebrow">Order Details</p>
+                            <h3>Order #{selectedOrder._id.slice(-6)}</h3>
+                            <p className="booking-detail-panel__subtext">
+                              Payment, shipping, and product details for the selected order.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className="booking-detail-close-btn"
+                            onClick={() => setSelectedOrder(null)}
+                          >
+                            Close
+                          </button>
+                        </div>
+
+                        <div className="booking-detail-panel__body">
+                          <div className="booking-metric-grid">
+                            <div className="booking-metric-card">
+                              <span>Order Status</span>
+                              <strong>{selectedOrder.orderStatus}</strong>
+                            </div>
+                            <div className="booking-metric-card">
+                              <span>Payment Status</span>
+                              <strong>{selectedOrder.paymentStatus}</strong>
+                            </div>
+                            <div className="booking-metric-card">
+                              <span>Total Amount</span>
+                              <strong>₹{selectedOrder.total?.toFixed?.(2) ?? selectedOrder.total}</strong>
+                            </div>
+                          </div>
+
+                          <div className="booking-info-stack">
+                            <p><strong>Recipient Name:</strong> {selectedOrder.shippingDetails?.fullName || 'N/A'}</p>
+                            <p><strong>Email:</strong> {selectedOrder.shippingDetails?.email || 'N/A'}</p>
+                            <p><strong>Phone:</strong> {selectedOrder.shippingDetails?.phone || 'N/A'}</p>
+                            <p><strong>Shipping Address:</strong> {selectedOrder.shippingDetails ? `${selectedOrder.shippingDetails.address}, ${selectedOrder.shippingDetails.city} - ${selectedOrder.shippingDetails.pincode}` : 'N/A'}</p>
+                          </div>
+
+                          <div className="booking-photo-grid">
+                            <div className="booking-photo-card">
+                              <p>Products Ordered</p>
+                              {selectedOrder.products && selectedOrder.products.length > 0 ? (
+                                <div className="order-items-list">
+                                  {selectedOrder.products.map((item, idx) => (
+                                    <div key={`${item.productId || item.name}-${idx}`} className="order-item-detail">
+                                      <span className="item-name">{item.name}</span>
+                                      <span className="item-qty">Qty: {item.quantity}</span>
+                                      <span className="item-price">₹{item.price?.toFixed?.(2) ?? item.price}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span>No products in this order.</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="booking-detail-actions">
+                            <label htmlFor="order-status-select"><strong>Update Order Status</strong></label>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                              <select
+                                id="order-status-select"
+                                value={selectedOrder.orderStatus}
+                                onChange={(e) => setSelectedOrder((prev) => prev ? { ...prev, orderStatus: e.target.value } : prev)}
+                                style={{ flex: 1, padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                              >
+                                <option value="confirmed">Confirmed</option>
+                                <option value="processing">Processing</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                              </select>
+                              <button
+                                type="button"
+                                className="btn-save"
+                                disabled={orderActionLoadingId === selectedOrder._id}
+                                onClick={() => handleUpdateOrderStatus(selectedOrder._id, selectedOrder.orderStatus)}
+                              >
+                                {orderActionLoadingId === selectedOrder._id ? 'Saving...' : 'Save Status'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="booking-detail-empty">
+                        <h3>No order selected</h3>
+                        <p>Choose an order from the list to review shipping and payment details.</p>
+                      </div>
+                    )}
+                  </aside>
+                </div>
+              </section>
+            )}
+
+            {activeTab === 'bookings' && (
+              <section className="users-section">
+                <div className="users-header">
+                  <h2>Bookings</h2>
                   <button type="button" className="theme-toggle-btn" onClick={fetchBookings}>Refresh</button>
                 </div>
                 <div className="booking-workspace">

@@ -13,6 +13,7 @@ import ProfessionalDetails from './pages/ProfessionalDetails';
 import Bookings from './pages/Bookings';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfessionalDashboard from './pages/ProfessionalDashboard';
@@ -58,6 +59,7 @@ function App() {
                     <Routes>
                       <Route path="/" element={<Home />} />
                       <Route path="/login" element={<Login />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
                       <Route path="/services" element={<Services />} />
                       <Route path="/products" element={<Products />} />
                       <Route path="/product/:id" element={<ProductDetails />} />

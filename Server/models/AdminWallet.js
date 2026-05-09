@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const adminWalletSchema = new mongoose.Schema(
   {
-    // Admin Reference (typically one admin wallet per admin)
+    // Admin Reference (can be a User ObjectId or system admin identifier)
     adminId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'User',
       required: true,
       unique: true,

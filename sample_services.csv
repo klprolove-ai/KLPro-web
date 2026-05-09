@@ -1,0 +1,9 @@
+name,description,category,subCategory,subSubCategory,serviceType,basePrice,estimatedDuration
+Plumbing Service,Professional plumbing services for homes and businesses,Home Services,Maintenance,Water Systems,Pipe Repair,150,60
+Electrical Repair,Electrical wiring and repair services,Home Services,Maintenance,Electrical Systems,Wiring,200,90
+House Cleaning,Complete house cleaning and sanitization,Home Services,Cleaning,Deep Clean,Standard,100,120
+Gardening Service,Garden maintenance and landscaping,Home Services,Gardening,Maintenance,Weekly,80,45
+Car Wash,Professional car washing and detailing,Automotive Services,Cleaning,Exterior Wash,Basic,50,30
+AC Repair,Air conditioning repair and maintenance,Home Services,Maintenance,HVAC,Repair,250,75
+Painting Service,Interior and exterior painting services,Home Services,Renovation,Painting,Interior,300,180
+Pest Control,Pest inspection and extermination services,Home Services,Maintenance,Pest Control,General,120,60

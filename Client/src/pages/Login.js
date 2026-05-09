@@ -71,7 +71,7 @@ function Login() {
   };
 
   const handleForgotPassword = () => {
-    navigate('/contact');
+    navigate('/forgot-password');
   };
 
   useEffect(() => {

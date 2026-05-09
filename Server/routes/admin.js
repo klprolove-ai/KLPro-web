@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const upload = require('../middleware/upload');
 const Booking = require('../models/Booking');
+const ProductOrder = require('../models/ProductOrder');
 const {
   adminLogin,
   adminLogout,
@@ -22,7 +23,8 @@ const {
   deleteService,
   getServiceStatistics,
   toggleServiceStatus,
-  toggleMostBooked
+  toggleMostBooked,
+  bulkUploadServices
 } = require('../controllers/serviceController');
 const {
   getAllContacts,
@@ -73,6 +75,7 @@ router.delete('/users/:id', verifyAdminToken, deleteUser);
 
 // Service Management Routes (Admin only)
 // Important: Specific routes must come before dynamic routes
+router.post('/services/bulk-upload', verifyAdminToken, upload.single('file'), bulkUploadServices);
 router.get('/services/stats', verifyAdminToken, getServiceStatistics);
 router.patch('/services/:id/toggle', verifyAdminToken, toggleServiceStatus);
 router.patch('/services/:id/most-booked', verifyAdminToken, toggleMostBooked);
@@ -105,6 +108,56 @@ router.get('/bookings', verifyAdminToken, async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json({ success: true, bookings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.get('/orders', verifyAdminToken, async (req, res) => {
+  try {
+    const orders = await ProductOrder.find()
+      .populate('customerId', 'name email phone city')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, orders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.get('/orders/:id', verifyAdminToken, async (req, res) => {
+  try {
+    const order = await ProductOrder.findById(req.params.id)
+      .populate('customerId', 'name email phone city');
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    res.json({ success: true, order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.patch('/orders/:id/status', verifyAdminToken, async (req, res) => {
+  try {
+    const { orderStatus } = req.body;
+    const allowedStatuses = ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+
+    if (!orderStatus || !allowedStatuses.includes(orderStatus)) {
+      return res.status(400).json({ success: false, message: 'Invalid order status' });
+    }
+
+    const order = await ProductOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    order.orderStatus = orderStatus;
+    await order.save();
+
+    res.json({ success: true, order });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

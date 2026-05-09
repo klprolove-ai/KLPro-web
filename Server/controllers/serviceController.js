@@ -1,5 +1,7 @@
 const Service = require('../models/Service');
 const cloudinary = require('../config/cloudinary');
+const csv = require('csv-parser');
+const xlsx = require('xlsx');
 
 // Helper function to upload image to Cloudinary
 const uploadImageToCloudinary = (fileBuffer) => {
@@ -407,6 +409,138 @@ const getMostBookedServices = async (req, res) => {
   }
 };
 
+// Bulk upload services
+const bulkUploadServices = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const fileName = req.file.originalname.toLowerCase();
+    let servicesData = [];
+
+    // Parse CSV file
+    if (fileName.endsWith('.csv')) {
+      const csvData = [];
+      const bufferStream = require('stream').Readable.from(fileBuffer);
+
+      await new Promise((resolve, reject) => {
+        bufferStream
+          .pipe(csv())
+          .on('data', (data) => csvData.push(data))
+          .on('end', () => {
+            servicesData = csvData;
+            resolve();
+          })
+          .on('error', reject);
+      });
+    }
+    // Parse Excel file
+    else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      const workbook = xlsx.read(fileBuffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      servicesData = xlsx.utils.sheet_to_json(worksheet);
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Unsupported file format. Please upload CSV or Excel file.'
+      });
+    }
+
+    if (servicesData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No data found in the uploaded file'
+      });
+    }
+
+    const results = {
+      successCount: 0,
+      errors: [],
+      totalProcessed: servicesData.length
+    };
+
+    // Process each service
+    for (let i = 0; i < servicesData.length; i++) {
+      const row = servicesData[i];
+      const rowNumber = i + 2; // +2 because Excel/CSV row numbering starts from 1, and we skip header
+
+      try {
+        // Validate required fields
+        const name = row.name?.toString().trim();
+        const description = row.description?.toString().trim();
+        const category = row.category?.toString().trim();
+        const basePrice = row.basePrice || row.price;
+        const estimatedDuration = row.estimatedDuration || row.duration;
+
+        if (!name || !description || !category) {
+          results.errors.push(`Row ${rowNumber}: Missing required fields (name, description, category)`);
+          continue;
+        }
+
+        // Validate and parse numeric fields
+        const parsedPrice = parseFloat(basePrice);
+        const parsedDuration = parseInt(estimatedDuration);
+
+        if (isNaN(parsedPrice) || parsedPrice < 0) {
+          results.errors.push(`Row ${rowNumber}: Invalid base price "${basePrice}"`);
+          continue;
+        }
+
+        if (isNaN(parsedDuration) || parsedDuration <= 0) {
+          results.errors.push(`Row ${rowNumber}: Invalid duration "${estimatedDuration}"`);
+          continue;
+        }
+
+        // Check if service with same name already exists
+        const existingService = await Service.findOne({ name });
+        if (existingService) {
+          results.errors.push(`Row ${rowNumber}: Service "${name}" already exists`);
+          continue;
+        }
+
+        // Create service
+        const service = new Service({
+          name,
+          description,
+          category,
+          subCategory: row.subCategory?.toString().trim() || '',
+          subSubCategory: row.subSubCategory?.toString().trim() || '',
+          serviceType: row.serviceType?.toString().trim() || '',
+          basePrice: parsedPrice,
+          estimatedDuration: parsedDuration,
+          isActive: true
+        });
+
+        await service.save();
+        results.successCount++;
+
+      } catch (error) {
+        results.errors.push(`Row ${rowNumber}: ${error.message}`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Bulk upload completed. ${results.successCount} services created successfully.`,
+      data: results
+    });
+
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during bulk upload',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllServices,
   getServiceById,
@@ -416,5 +550,6 @@ module.exports = {
   getServiceStatistics,
   toggleServiceStatus,
   toggleMostBooked,
-  getMostBookedServices
+  getMostBookedServices,
+  bulkUploadServices
 };

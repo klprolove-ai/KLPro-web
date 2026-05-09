@@ -12,6 +12,7 @@ const {
   deleteProductImage,
   getProductCategories,
   createProductOrder,
+  bulkUploadProducts
 } = require('../controllers/productController');
 
 // Middleware
@@ -30,6 +31,7 @@ router.post('/create-order', verifyToken, createProductOrder);
 router.get('/:id', getProductById);
 
 // Admin routes
+router.post('/bulk-upload', verifyAdminToken, upload.single('file'), bulkUploadProducts);
 router.post('/', verifyAdminToken, createProduct);
 router.put('/:id', verifyAdminToken, updateProduct);
 router.delete('/:id', verifyAdminToken, deleteProduct);

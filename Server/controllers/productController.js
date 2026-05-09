@@ -1,6 +1,8 @@
 const Product = require('../models/Product');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
+const csv = require('csv-parser');
+const xlsx = require('xlsx');
 
 const uploadBufferToCloudinary = (buffer, folder) => {
   return new Promise((resolve, reject) => {
@@ -420,6 +422,131 @@ exports.createProductOrder = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+// Bulk upload products
+exports.bulkUploadProducts = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const fileName = req.file.originalname.toLowerCase();
+    let productsData = [];
+
+    // Parse CSV file
+    if (fileName.endsWith('.csv')) {
+      const csvData = [];
+      const bufferStream = require('stream').Readable.from(fileBuffer);
+
+      await new Promise((resolve, reject) => {
+        bufferStream
+          .pipe(csv())
+          .on('data', (data) => csvData.push(data))
+          .on('end', () => {
+            productsData = csvData;
+            resolve();
+          })
+          .on('error', reject);
+      });
+    }
+    // Parse Excel file
+    else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      const workbook = xlsx.read(fileBuffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      productsData = xlsx.utils.sheet_to_json(worksheet);
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Unsupported file format. Please upload CSV or Excel file.'
+      });
+    }
+
+    if (productsData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No data found in the uploaded file'
+      });
+    }
+
+    const results = {
+      successCount: 0,
+      errors: [],
+      totalProcessed: productsData.length
+    };
+
+    // Process each product
+    for (let i = 0; i < productsData.length; i++) {
+      const row = productsData[i];
+      const rowNumber = i + 2; // +2 because Excel/CSV row numbering starts from 1, and we skip header
+
+      try {
+        // Validate required fields
+        const name = row.name?.toString().trim();
+        const description = row.description?.toString().trim();
+        const category = row.category?.toString().trim();
+        const price = row.price || row.basePrice;
+
+        if (!name || !description || !category) {
+          results.errors.push(`Row ${rowNumber}: Missing required fields (name, description, category)`);
+          continue;
+        }
+
+        // Validate and parse price
+        const parsedPrice = parseFloat(price);
+        if (isNaN(parsedPrice) || parsedPrice < 0) {
+          results.errors.push(`Row ${rowNumber}: Invalid price "${price}"`);
+          continue;
+        }
+
+        // Check if product with same name already exists
+        const existingProduct = await Product.findOne({ name });
+        if (existingProduct) {
+          results.errors.push(`Row ${rowNumber}: Product "${name}" already exists`);
+          continue;
+        }
+
+        // Create product
+        const product = new Product({
+          name,
+          description,
+          price: parsedPrice,
+          category,
+          subcategory: row.subcategory?.toString().trim() || null,
+          subSubcategory: row.subSubcategory?.toString().trim() || null,
+          subSubSubcategory: row.subSubSubcategory?.toString().trim() || null,
+          size: row.size?.toString().trim() || null,
+          stock: parseInt(row.stock) || 0,
+          isActive: true
+        });
+
+        await product.save();
+        results.successCount++;
+
+      } catch (error) {
+        results.errors.push(`Row ${rowNumber}: ${error.message}`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Bulk upload completed. ${results.successCount} products created successfully.`,
+      data: results
+    });
+
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during bulk upload',
+      error: error.message
     });
   }
 };

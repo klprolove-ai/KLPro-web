@@ -36,6 +36,10 @@ const AdminProductsSection = () => {
   const [uploadingImages, setUploadingImages] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [bulkUploadFile, setBulkUploadFile] = useState(null);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState(0);
+  const [bulkUploadResults, setBulkUploadResults] = useState(null);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -197,6 +201,64 @@ const AdminProductsSection = () => {
     }
   };
 
+  const handleBulkUpload = async () => {
+    if (!bulkUploadFile) {
+      alert('Please select a file to upload');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', bulkUploadFile);
+
+    try {
+      setBulkUploadProgress(10);
+
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/products/bulk-upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+        },
+        body: formData,
+      });
+
+      setBulkUploadProgress(50);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Bulk upload failed');
+      }
+
+      const result = await response.json();
+      setBulkUploadProgress(100);
+      setBulkUploadResults(result);
+
+      if (result.success) {
+        alert(result.message);
+        setShowBulkUpload(false);
+        setBulkUploadFile(null);
+        setBulkUploadResults(null);
+        setBulkUploadProgress(0);
+        fetchProducts();
+      }
+    } catch (error) {
+      console.error('Bulk upload error:', error);
+      alert('Bulk upload failed: ' + error.message);
+      setBulkUploadProgress(0);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const allowedTypes = ['text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please select a CSV or Excel file');
+        return;
+      }
+      setBulkUploadFile(file);
+    }
+  };
+
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     const remaining = 4 - (selectedProduct?.images?.length || 0);
@@ -268,9 +330,14 @@ const AdminProductsSection = () => {
           <h2>Product Management</h2>
           <p>Manage products, upload images, and control inventory</p>
         </div>
-        <button className="btn-add-product" onClick={handleAddProduct}>
-          + Add New Product
-        </button>
+        <div className="header-actions">
+          <button className="btn-bulk-upload" onClick={() => setShowBulkUpload(true)}>
+            📁 Bulk Upload
+          </button>
+          <button className="btn-add-product" onClick={handleAddProduct}>
+            + Add New Product
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -710,6 +777,91 @@ const AdminProductsSection = () => {
           </div>
         )}
       </div>
+
+      {/* Bulk Upload Modal */}
+      {showBulkUpload && (
+        <div className="modal-overlay">
+          <div className="bulk-upload-modal">
+            <h3>Bulk Upload Products</h3>
+            <p>Upload a CSV or Excel file to add multiple products at once.</p>
+
+            <div className="upload-instructions">
+              <h4>File Format Requirements:</h4>
+              <ul>
+                <li>Supported formats: CSV (.csv) or Excel (.xlsx, .xls)</li>
+                <li>Required columns: name, description, category, price</li>
+                <li>Optional columns: subcategory, subSubcategory, subSubSubcategory, size, stock</li>
+                <li>First row should be column headers</li>
+              </ul>
+              <p><strong>Example:</strong> Download the <a href="/sample_products.csv" target="_blank" rel="noopener noreferrer">sample CSV file</a> to see the correct format.</p>
+            </div>
+
+            <div className="file-input-container">
+              <input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileChange}
+                className="file-input"
+                id="bulk-upload-file"
+              />
+              <label htmlFor="bulk-upload-file" className="file-input-label">
+                {bulkUploadFile ? bulkUploadFile.name : 'Choose CSV or Excel file'}
+              </label>
+            </div>
+
+            {bulkUploadProgress > 0 && (
+              <div className="upload-progress">
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${bulkUploadProgress}%` }}
+                  ></div>
+                </div>
+                <p>{bulkUploadProgress === 100 ? 'Upload complete!' : 'Uploading...'}</p>
+              </div>
+            )}
+
+            {bulkUploadResults && (
+              <div className="upload-results">
+                <h4>Upload Results:</h4>
+                <p><strong>Processed:</strong> {bulkUploadResults.data?.totalProcessed || 0} products</p>
+                <p><strong>Successful:</strong> {bulkUploadResults.data?.successCount || 0} products</p>
+                {bulkUploadResults.data?.errors?.length > 0 && (
+                  <div className="error-list">
+                    <p><strong>Errors:</strong></p>
+                    <ul>
+                      {bulkUploadResults.data.errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button
+                className="btn-cancel"
+                onClick={() => {
+                  setShowBulkUpload(false);
+                  setBulkUploadFile(null);
+                  setBulkUploadResults(null);
+                  setBulkUploadProgress(0);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-upload"
+                onClick={handleBulkUpload}
+                disabled={!bulkUploadFile || bulkUploadProgress > 0}
+              >
+                {bulkUploadProgress > 0 ? 'Uploading...' : 'Upload Products'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

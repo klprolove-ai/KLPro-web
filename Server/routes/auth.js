@@ -4,9 +4,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Professional = require('../models/Professional');
+const OTP = require('../models/OTP');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const cloudinary = require('../config/cloudinary');
+const { sendSMS, generateOTP } = require('../services/smsService');
 
 const uploadImageToCloudinary = (fileBuffer, folderName) => {
   return new Promise((resolve, reject) => {
@@ -330,6 +332,207 @@ router.post('/logout', authMiddleware, (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Forgot Password - Send OTP to registered mobile number
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { mobile } = req.body;
+
+    if (!mobile) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mobile number is required'
+      });
+    }
+
+    // Check if mobile number is registered
+    const user = await User.findOne({ phone: mobile });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Number Not Registered'
+      });
+    }
+
+    // Generate 6-digit OTP
+    const otp = generateOTP();
+
+    // Delete any existing OTP for this mobile number
+    await OTP.deleteMany({ mobile });
+
+    // Save new OTP
+    const otpRecord = new OTP({
+      mobile,
+      otp,
+    });
+    await otpRecord.save();
+
+    // Send SMS with OTP
+    const message = `Your KL Pro OTP is ${otp}. Valid for 10 minutes. Do not share with anyone.`;
+    const smsResult = await sendSMS(mobile, message);
+
+    if (!smsResult.success) {
+      console.error('SMS sending failed:', smsResult.error);
+      // Still return success to not expose SMS service issues
+      return res.status(200).json({
+        success: true,
+        message: 'OTP sent to your registered mobile number'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP sent to your registered mobile number'
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error processing forgot password request',
+      error: error.message
+    });
+  }
+});
+
+// Verify OTP
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { mobile, otp } = req.body;
+
+    if (!mobile || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mobile number and OTP are required'
+      });
+    }
+
+    // Find OTP record
+    const otpRecord = await OTP.findOne({ mobile, otp });
+
+    if (!otpRecord) {
+      // Increment attempts
+      const failedAttempt = await OTP.findOne({ mobile });
+      if (failedAttempt) {
+        failedAttempt.attempts += 1;
+        await failedAttempt.save();
+
+        if (failedAttempt.attempts >= failedAttempt.maxAttempts) {
+          await OTP.deleteOne({ _id: failedAttempt._id });
+          return res.status(401).json({
+            success: false,
+            message: 'Maximum OTP attempts exceeded. Please request a new OTP'
+          });
+        }
+
+        return res.status(401).json({
+          success: false,
+          message: `Invalid OTP. ${failedAttempt.maxAttempts - failedAttempt.attempts} attempts remaining`
+        });
+      }
+
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid OTP or OTP expired'
+      });
+    }
+
+    // Generate a reset token
+    const resetToken = jwt.sign(
+      { mobile, purpose: 'password-reset' },
+      process.env.JWT_SECRET || 'your_jwt_secret',
+      { expiresIn: '15m' }
+    );
+
+    // Delete OTP after successful verification
+    await OTP.deleteOne({ _id: otpRecord._id });
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP verified successfully',
+      resetToken
+    });
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error verifying OTP',
+      error: error.message
+    });
+  }
+});
+
+// Reset Password with OTP
+router.post('/reset-password-otp', async (req, res) => {
+  try {
+    const { mobile, newPassword, resetToken } = req.body;
+
+    if (!mobile || !newPassword || !resetToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mobile number, new password, and reset token are required'
+      });
+    }
+
+    // Verify reset token
+    try {
+      const decoded = jwt.verify(
+        resetToken,
+        process.env.JWT_SECRET || 'your_jwt_secret'
+      );
+
+      if (decoded.purpose !== 'password-reset' || decoded.mobile !== mobile) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid reset token'
+        });
+      }
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Reset token expired. Please request a new OTP'
+      });
+    }
+
+    // Find user by mobile number
+    const user = await User.findOne({ phone: mobile });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update user password
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error resetting password',
+      error: error.message
+    });
   }
 });
 

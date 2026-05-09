@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SERVICE_HIERARCHY, getHierarchyOptions, getServiceTypeOptions } from '../config/serviceHierarchy';
 
 function AdminServicesSection({
@@ -18,6 +18,63 @@ function AdminServicesSection({
   handleServiceImageChange,
   imagePreview
 }) {
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [bulkUploadFile, setBulkUploadFile] = useState(null);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState(0);
+  const [bulkUploadResults, setBulkUploadResults] = useState(null);
+
+  const handleBulkUpload = async () => {
+    if (!bulkUploadFile) {
+      alert('Please select a file to upload');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', bulkUploadFile);
+
+    try {
+      setBulkUploadProgress(10);
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/admin/services/bulk-upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      setBulkUploadProgress(50);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Bulk upload failed');
+      }
+
+      const result = await response.json();
+      setBulkUploadProgress(100);
+      setBulkUploadResults(result);
+
+      // Refresh services list
+      window.location.reload();
+
+    } catch (error) {
+      console.error('Bulk upload error:', error);
+      alert('Bulk upload failed: ' + error.message);
+      setBulkUploadProgress(0);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please select a CSV or Excel file');
+        return;
+      }
+      setBulkUploadFile(file);
+    }
+  };
   const filteredServices = services.filter(service =>
     service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     service.category.toLowerCase().includes(searchQuery.toLowerCase())
@@ -64,26 +121,34 @@ function AdminServicesSection({
     <div className="services-section">
       <div className="services-header">
         <h2>Catalog Management</h2>
-        <button 
-          className="btn-add-service"
-          onClick={() => {
-            setShowServiceForm(true);
-            setEditingService({
-              name: '',
-              description: '',
-              category: 'HelpingHand',
-              subCategory: '',
-              subSubCategory: '',
-              serviceType: '',
-              basePrice: 0,
-              estimatedDuration: 30,
-              image: '',
-              isActive: true
-            });
-          }}
-        >
-          + Add Service Listing
-        </button>
+        <div className="services-header-actions">
+          <button 
+            className="btn-bulk-upload"
+            onClick={() => setShowBulkUpload(true)}
+          >
+            📁 Bulk Upload
+          </button>
+          <button 
+            className="btn-add-service"
+            onClick={() => {
+              setShowServiceForm(true);
+              setEditingService({
+                name: '',
+                description: '',
+                category: 'HelpingHand',
+                subCategory: '',
+                subSubCategory: '',
+                serviceType: '',
+                basePrice: 0,
+                estimatedDuration: 30,
+                image: '',
+                isActive: true
+              });
+            }}
+          >
+            + Add Service Listing
+          </button>
+        </div>
         <input
           type="text"
           placeholder="Search catalog by service name or category..."
@@ -502,6 +567,99 @@ function AdminServicesSection({
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkUpload && (
+        <div className="modal-overlay" onClick={() => setShowBulkUpload(false)}>
+          <div className="modal-content bulk-upload-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Bulk Upload Services</h3>
+              <button className="modal-close" onClick={() => setShowBulkUpload(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="bulk-upload-info">
+                <h4>Upload Instructions</h4>
+                <p>Upload a CSV or Excel file with the following columns:</p>
+                <ul>
+                  <li><strong>name</strong> - Service name (required)</li>
+                  <li><strong>description</strong> - Service description (required)</li>
+                  <li><strong>category</strong> - Main category (required)</li>
+                  <li><strong>subCategory</strong> - Sub category (optional)</li>
+                  <li><strong>subSubCategory</strong> - Sub-sub category (optional)</li>
+                  <li><strong>serviceType</strong> - Service type (optional)</li>
+                  <li><strong>basePrice</strong> - Price in rupees (required)</li>
+                  <li><strong>estimatedDuration</strong> - Duration in minutes (required)</li>
+                </ul>
+                <p><strong>Note:</strong> Image uploads are not supported in bulk upload. You can add images individually after upload.</p>
+              </div>
+
+              <div className="file-upload-section">
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleFileChange}
+                  className="file-input"
+                />
+                {bulkUploadFile && (
+                  <div className="file-info">
+                    <p>Selected: {bulkUploadFile.name}</p>
+                    <p>Size: {(bulkUploadFile.size / 1024).toFixed(2)} KB</p>
+                  </div>
+                )}
+              </div>
+
+              {bulkUploadProgress > 0 && (
+                <div className="upload-progress">
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${bulkUploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <p>{bulkUploadProgress}% complete</p>
+                </div>
+              )}
+
+              {bulkUploadResults && (
+                <div className="upload-results">
+                  <h4>Upload Results</h4>
+                  <p>✅ Successfully uploaded: {bulkUploadResults.successCount || 0} services</p>
+                  {bulkUploadResults.errors && bulkUploadResults.errors.length > 0 && (
+                    <div className="upload-errors">
+                      <p>❌ Errors: {bulkUploadResults.errors.length}</p>
+                      <ul>
+                        {bulkUploadResults.errors.slice(0, 5).map((error, index) => (
+                          <li key={index}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn-cancel"
+                onClick={() => {
+                  setShowBulkUpload(false);
+                  setBulkUploadFile(null);
+                  setBulkUploadProgress(0);
+                  setBulkUploadResults(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-upload"
+                onClick={handleBulkUpload}
+                disabled={!bulkUploadFile || bulkUploadProgress > 0}
+              >
+                {bulkUploadProgress > 0 ? 'Uploading...' : 'Upload Services'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
