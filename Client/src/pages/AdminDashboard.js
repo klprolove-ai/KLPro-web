@@ -140,123 +140,170 @@ function AdminDashboard() {
   };
 
   const fetchUsers = async () => {
-    const token = localStorage.getItem('adminToken');
-    const response = await fetch(`${API_BASE_URL}/admin/users`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
       }
-    });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch users');
+      const data = await response.json();
+      setUsers(Array.isArray(data.users) ? data.users : []);
+    } catch (err) {
+      console.error('Fetch users error:', err);
+      setUsers([]);
     }
-
-    const data = await response.json();
-    setUsers(data.users || []);
   };
 
   const fetchStatistics = async () => {
-    const token = localStorage.getItem('adminToken');
-    const response = await fetch(`${API_BASE_URL}/admin/users/stats`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/admin/users/stats`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch statistics');
       }
-    });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch statistics');
+      const data = await response.json();
+      setStatistics(data.statistics || {
+        totalUsers: 0,
+        customers: 0,
+        professionals: 0,
+        verifiedUsers: 0,
+        unverifiedUsers: 0
+      });
+    } catch (err) {
+      console.error('Fetch statistics error:', err);
+      setStatistics({
+        totalUsers: 0,
+        customers: 0,
+        professionals: 0,
+        verifiedUsers: 0,
+        unverifiedUsers: 0
+      });
     }
-
-    const data = await response.json();
-    setStatistics(data.statistics);
   };
 
   const fetchServices = async () => {
-    const token = localStorage.getItem('adminToken');
-    const response = await fetch(`${API_BASE_URL}/admin/services`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/admin/services`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch services');
       }
-    });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch services');
+      const data = await response.json();
+      setServices(Array.isArray(data.services) ? data.services : []);
+    } catch (err) {
+      console.error('Fetch services error:', err);
+      setServices([]);
     }
-
-    const data = await response.json();
-    setServices(data.services || []);
   };
 
   const fetchProducts = async () => {
-    const token = localStorage.getItem('adminToken');
-    const response = await fetch(`${API_BASE_URL}/products?limit=1`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/products?limit=1`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
       }
-    });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch products');
+      const data = await response.json();
+      const totalProducts = data.pagination?.total ?? data.products?.length ?? 0;
+      setProductCount(totalProducts);
+    } catch (err) {
+      console.error('Fetch products error:', err);
+      setProductCount(0);
     }
-
-    const data = await response.json();
-    const totalProducts = data.pagination?.total ?? data.products?.length ?? 0;
-    setProductCount(totalProducts);
   };
 
   const fetchProfessionalApplications = async () => {
-    const token = localStorage.getItem('adminToken');
-    const response = await fetch(`${API_BASE_URL}/admin/professionals/applications`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/admin/professionals/applications`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch professional applications');
       }
-    });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch professional applications');
+      const data = await response.json();
+      setProfessionalApplications(Array.isArray(data.applications) ? data.applications : []);
+    } catch (err) {
+      console.error('Fetch professional applications error:', err);
+      setProfessionalApplications([]);
     }
-
-    const data = await response.json();
-    setProfessionalApplications(data.applications || []);
   };
 
   const fetchBookings = async () => {
-    const token = localStorage.getItem('adminToken');
-    const response = await fetch(`${API_BASE_URL}/admin/bookings`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/admin/bookings`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch bookings');
       }
-    });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch bookings');
+      const data = await response.json();
+      setBookings(Array.isArray(data.bookings) ? data.bookings : []);
+    } catch (err) {
+      console.error('Fetch bookings error:', err);
+      setBookings([]);
     }
-
-    const data = await response.json();
-    setBookings(data.bookings || []);
   };
 
   const fetchProductOrders = async () => {
-    const token = localStorage.getItem('adminToken');
-    const response = await fetch(`${API_BASE_URL}/admin/orders`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/admin/orders`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders');
       }
-    });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch orders');
+      const data = await response.json();
+      setProductOrders(Array.isArray(data.orders) ? data.orders : []);
+    } catch (err) {
+      console.error('Fetch orders error:', err);
+      setProductOrders([]);
     }
-
-    const data = await response.json();
-    setProductOrders(data.orders || []);
   };
 
   const handleSelectBooking = async (booking) => {
@@ -387,27 +434,33 @@ function AdminDashboard() {
       }
 
       const data = await response.json();
-      setContacts(data.contacts || []);
+      setContacts(Array.isArray(data.contacts) ? data.contacts : []);
     } catch (err) {
       console.error('Fetch contacts error:', err);
+      setContacts([]);
     }
   };
 
   const fetchHomepageCards = async () => {
-    const token = localStorage.getItem('adminToken');
-    const response = await fetch(`${API_BASE_URL}/admin/homepage-cards`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/admin/homepage-cards`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch homepage cards');
+      if (!response.ok) {
+        throw new Error('Failed to fetch homepage cards');
+      }
+
+      const data = await response.json();
+      setHomepageCards(Array.isArray(data.cards) ? data.cards : []);
+    } catch (err) {
+      console.error('Fetch homepage cards error:', err);
+      setHomepageCards([]);
     }
-
-    const data = await response.json();
-    setHomepageCards(data.cards || []);
   };
 
   const handleCreateHomepageCard = async () => {

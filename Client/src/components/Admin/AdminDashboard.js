@@ -29,7 +29,15 @@ const AdminDashboard = () => {
       setAdminWallet(walletRes.data);
       setCommissionReport(reportRes.data);
       setAnalytics(analyticsRes.data);
-      setProfessionals(professionalsRes.data || []);
+      const profData = professionalsRes.data;
+      const profArray = Array.isArray(profData)
+        ? profData
+        : Array.isArray(profData?.professionals)
+        ? profData.professionals
+        : Array.isArray(profData?.data)
+        ? profData.data
+        : [];
+      setProfessionals(profArray);
       setError(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load admin data');
