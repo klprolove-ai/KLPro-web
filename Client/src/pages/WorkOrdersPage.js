@@ -45,15 +45,37 @@ const WorkOrdersPage = () => {
     setFilteredOrders(filtered);
   }, [workOrders, filterStatus, searchTerm]);
 
+  const normalizeWorkOrder = (booking) => {
+    const serviceAddress = booking?.serviceAddress || {};
+    const locationParts = [serviceAddress.street, serviceAddress.city, serviceAddress.state, serviceAddress.zipCode]
+      .map(part => String(part || '').trim())
+      .filter(Boolean);
+
+    return {
+      ...booking,
+      userName: booking?.customerId?.name || booking?.userName || 'N/A',
+      userEmail: booking?.customerId?.email || booking?.userEmail || 'N/A',
+      userPhone: booking?.customerId?.phone || booking?.userPhone || '',
+      serviceName: booking?.serviceId?.name || booking?.serviceName || 'Service Booking',
+      bookingDate: booking?.scheduledDate || booking?.bookingDate || null,
+      bookingTime: booking?.scheduledTime || booking?.bookingTime || '',
+      totalAmount: Number(booking?.price ?? booking?.totalAmount ?? 0),
+      description: booking?.notes || booking?.description || '',
+      location: locationParts.join(', '),
+    };
+  };
+
   const fetchWorkOrders = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/bookings/professional`, {
+      const response = await axios.get(`${API_BASE_URL}/bookings/professional/my-jobs`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const orders = response.data?.data || [];
+      const orders = Array.isArray(response.data?.bookings)
+        ? response.data.bookings.map(normalizeWorkOrder)
+        : [];
       setWorkOrders(orders);
       setError(null);
     } catch (err) {
@@ -73,11 +95,11 @@ const WorkOrdersPage = () => {
   const getStatusColor = (status) => {
     const colors = {
       'pending': '#ffc107',
-      'accepted': '#17a2b8',
+      'confirmed': '#17a2b8',
       'in-progress': '#007bff',
       'completed': '#28a745',
+      'rejected': '#dc3545',
       'cancelled': '#dc3545',
-      'confirmed': '#20c997'
     };
     return colors[status] || '#6c757d';
   };
@@ -85,11 +107,11 @@ const WorkOrdersPage = () => {
   const getStatusIcon = (status) => {
     const icons = {
       'pending': '⏳',
-      'accepted': '✅',
+      'confirmed': '✅',
       'in-progress': '🔄',
       'completed': '✓',
+      'rejected': '⛔',
       'cancelled': '❌',
-      'confirmed': '🎯'
     };
     return icons[status] || '📋';
   };
@@ -97,15 +119,16 @@ const WorkOrdersPage = () => {
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(
-        `${API_BASE_URL}/bookings/${orderId}/status`,
+      const response = await axios.put(
+        `${API_BASE_URL}/bookings/professional/${orderId}/status`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      const updatedOrder = normalizeWorkOrder(response.data || {});
       
       // Update local state
       setWorkOrders(workOrders.map(order =>
-        order._id === orderId ? { ...order, status: newStatus } : order
+        order._id === orderId ? updatedOrder : order
       ));
       
       setShowModal(false);
@@ -153,8 +176,8 @@ const WorkOrdersPage = () => {
           <span className="stat-value">{workOrders.filter(o => o.status === 'pending').length}</span>
         </div>
         <div className="stat-card">
-          <span className="stat-label">In Progress</span>
-          <span className="stat-value">{workOrders.filter(o => o.status === 'in-progress').length}</span>
+          <span className="stat-label">Confirmed</span>
+          <span className="stat-value">{workOrders.filter(o => ['confirmed', 'accepted'].includes(o.status)).length}</span>
         </div>
         <div className="stat-card">
           <span className="stat-label">Completed</span>
@@ -172,7 +195,7 @@ const WorkOrdersPage = () => {
           className="search-input"
         />
         <div className="filter-buttons">
-          {['all', 'pending', 'accepted', 'in-progress', 'completed', 'cancelled'].map(status => (
+          {['all', 'pending', 'confirmed', 'in-progress', 'completed', 'rejected', 'cancelled'].map(status => (
             <button
               key={status}
               className={`filter-btn ${filterStatus === status ? 'active' : ''}`}
@@ -274,7 +297,7 @@ const WorkOrdersPage = () => {
                 <span className="created-date">
                   📅 Created: {new Date(order.createdAt).toLocaleDateString('en-IN')}
                 </span>
-                {['pending', 'accepted'].includes(order.status) && (
+                {['pending', 'confirmed'].includes(order.status) && (
                   <button
                     className="btn-action"
                     onClick={() => {
@@ -314,27 +337,27 @@ const WorkOrdersPage = () => {
                 <>
                   <button
                     className="status-option accepted"
-                    onClick={() => handleStatusUpdate(selectedOrder._id, 'accepted')}
+                    onClick={() => handleStatusUpdate(selectedOrder._id, 'confirmed')}
                   >
-                    ✅ Accept Order
+                    ✅ Confirm Order
+                  </button>
+                  <button
+                    className="status-option cancelled"
+                    onClick={() => handleStatusUpdate(selectedOrder._id, 'rejected')}
+                  >
+                    ❌ Reject Order
                   </button>
                   <button
                     className="status-option cancelled"
                     onClick={() => handleStatusUpdate(selectedOrder._id, 'cancelled')}
                   >
-                    ❌ Cancel Order
+                    ⛔ Cancel Order
                   </button>
                 </>
               )}
 
-              {selectedOrder.status === 'accepted' && (
+                {selectedOrder.status === 'confirmed' && (
                 <>
-                  <button
-                    className="status-option in-progress"
-                    onClick={() => handleStatusUpdate(selectedOrder._id, 'in-progress')}
-                  >
-                    🔄 Mark as In Progress
-                  </button>
                   <button
                     className="status-option cancelled"
                     onClick={() => handleStatusUpdate(selectedOrder._id, 'cancelled')}
@@ -346,13 +369,12 @@ const WorkOrdersPage = () => {
 
               {selectedOrder.status === 'in-progress' && (
                 <>
-                  <button
-                    className="status-option completed"
-                    onClick={() => handleStatusUpdate(selectedOrder._id, 'completed')}
-                  >
-                    ✓ Mark as Completed
-                  </button>
+                  <p className="modal-subtitle">This order is already in progress. Completion is handled from the work-start workflow.</p>
                 </>
+              )}
+
+              {selectedOrder.status === 'completed' && (
+                <p className="modal-subtitle">This order is already completed.</p>
               )}
             </div>
 

@@ -1,12 +1,14 @@
 const Review = require('../models/Review');
 const Product = require('../models/Product');
 const User = require('../models/User');
+const Professional = require('../models/Professional');
 
 // Create a review
 exports.createReview = async (req, res) => {
   try {
     const { rating, comment, reviewType, productId, professionalId } = req.body;
     const userId = req.user._id;
+    let professionalUserId = null;
 
     if (!rating || !comment || !reviewType) {
       return res.status(400).json({
@@ -50,12 +52,49 @@ exports.createReview = async (req, res) => {
         reviewer: userId,
         product: productId,
         reviewType: 'product',
+        isActive: { $ne: false },
       });
 
       if (existingReview) {
-        return res.status(400).json({
-          success: false,
-          message: 'You have already reviewed this product',
+        // Update existing review instead of blocking
+        const updatedReview = await Review.findByIdAndUpdate(
+          existingReview._id,
+          {
+            rating: parseInt(rating),
+            comment,
+          },
+          { new: true }
+        );
+
+        // Update product rating
+        const allReviews = await Review.find({
+          product: productId,
+          reviewType: 'product',
+          isActive: { $ne: false },
+        });
+
+        const avgRating =
+          allReviews.length > 0
+            ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+            : 0;
+
+        await Product.findByIdAndUpdate(
+          productId,
+          {
+            rating: avgRating,
+            reviewCount: allReviews.length,
+          },
+          { new: true }
+        );
+
+        const populatedReview = await Review.findById(updatedReview._id)
+          .populate('reviewer', 'name profileImage')
+          .populate('product', 'name');
+
+        return res.status(200).json({
+          success: true,
+          message: 'Review updated successfully',
+          review: populatedReview,
         });
       }
 
@@ -68,8 +107,28 @@ exports.createReview = async (req, res) => {
         });
       }
 
-      const professional = await User.findById(professionalId);
-      if (!professional || professional.userType !== 'professional') {
+      // Try to find by Professional._id first, then fallback to User._id
+      let professional = await Professional.findById(professionalId).populate('userId');
+      professionalUserId = professionalId;
+
+      if (professional && professional.userId) {
+        // If found as Professional record, use its userId
+        professionalUserId = professional.userId._id;
+      } else {
+        // Otherwise try to find it as a User._id directly
+        professional = await User.findById(professionalId);
+      }
+
+      if (!professional) {
+        return res.status(404).json({
+          success: false,
+          message: 'Professional not found',
+        });
+      }
+
+      // Validate that it's a professional user type
+      const professionalUser = await User.findById(professionalUserId);
+      if (!professionalUser || professionalUser.userType !== 'professional') {
         return res.status(404).json({
           success: false,
           message: 'Professional not found',
@@ -79,18 +138,55 @@ exports.createReview = async (req, res) => {
       // Check if user already reviewed this professional
       const existingReview = await Review.findOne({
         reviewer: userId,
-        professional: professionalId,
+        professional: professionalUserId,
         reviewType: 'professional',
+        isActive: { $ne: false },
       });
 
       if (existingReview) {
-        return res.status(400).json({
-          success: false,
-          message: 'You have already reviewed this professional',
+        // Update existing review instead of blocking
+        const updatedReview = await Review.findByIdAndUpdate(
+          existingReview._id,
+          {
+            rating: parseInt(rating),
+            comment,
+          },
+          { new: true }
+        );
+
+        // Update professional rating
+        const allReviews = await Review.find({
+          professional: professionalUserId,
+          reviewType: 'professional',
+          isActive: { $ne: false },
+        });
+
+        const avgRating =
+          allReviews.length > 0
+            ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+            : 0;
+
+        await User.findByIdAndUpdate(
+          professionalUserId,
+          {
+            rating: avgRating,
+            reviewCount: allReviews.length,
+          },
+          { new: true }
+        );
+
+        const populatedReview = await Review.findById(updatedReview._id)
+          .populate('reviewer', 'name profileImage')
+          .populate('professional', 'name');
+
+        return res.status(200).json({
+          success: true,
+          message: 'Review updated successfully',
+          review: populatedReview,
         });
       }
 
-      reviewData.professional = professionalId;
+      reviewData.professional = professionalUserId;
     }
 
     const review = await Review.create(reviewData);
@@ -100,11 +196,13 @@ exports.createReview = async (req, res) => {
       const allReviews = await Review.find({
         product: productId,
         reviewType: 'product',
-        isActive: true,
+        isActive: { $ne: false },
       });
 
       const avgRating =
-        allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+        allReviews.length > 0
+          ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+          : 0;
 
       await Product.findByIdAndUpdate(
         productId,
@@ -116,16 +214,18 @@ exports.createReview = async (req, res) => {
       );
     } else if (reviewType === 'professional') {
       const allReviews = await Review.find({
-        professional: professionalId,
+        professional: professionalUserId,
         reviewType: 'professional',
-        isActive: true,
+        isActive: { $ne: false },
       });
 
       const avgRating =
-        allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+        allReviews.length > 0
+          ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+          : 0;
 
       await User.findByIdAndUpdate(
-        professionalId,
+        professionalUserId,
         {
           rating: avgRating,
           reviewCount: allReviews.length,
@@ -170,13 +270,13 @@ exports.getProductReviews = async (req, res) => {
     const total = await Review.countDocuments({
       product: productId,
       reviewType: 'product',
-      isActive: true,
+      isActive: { $ne: false },
     });
 
     const reviews = await Review.find({
       product: productId,
       reviewType: 'product',
-      isActive: true,
+      isActive: { $ne: false },
     })
       .populate('reviewer', 'name profileImage')
       .skip(skip)
@@ -206,7 +306,15 @@ exports.getProfessionalReviews = async (req, res) => {
     const { professionalId } = req.params;
     const { page = 1, limit = 10 } = req.query;
 
-    const professional = await User.findById(professionalId);
+    let professionalUserId = professionalId;
+
+    let professional = await User.findById(professionalId);
+    if (!professional || professional.userType !== 'professional') {
+      const professionalProfile = await Professional.findById(professionalId).populate('userId');
+      professionalUserId = professionalProfile?.userId?._id || professionalId;
+      professional = professionalProfile?.userId || null;
+    }
+
     if (!professional || professional.userType !== 'professional') {
       return res.status(404).json({
         success: false,
@@ -216,15 +324,15 @@ exports.getProfessionalReviews = async (req, res) => {
 
     const skip = (page - 1) * limit;
     const total = await Review.countDocuments({
-      professional: professionalId,
+      professional: professionalUserId,
       reviewType: 'professional',
-      isActive: true,
+      isActive: { $ne: false },
     });
 
     const reviews = await Review.find({
-      professional: professionalId,
+      professional: professionalUserId,
       reviewType: 'professional',
-      isActive: true,
+      isActive: { $ne: false },
     })
       .populate('reviewer', 'name profileImage')
       .skip(skip)

@@ -8,12 +8,6 @@ const FirstVisitLocationPrompt = () => {
   const intervalRef = useRef(null);
 
   useEffect(() => {
-    const storedLocation = localStorage.getItem('userPreferredLocation');
-
-    if (storedLocation && storedLocation.trim()) {
-      return undefined;
-    }
-
     timeoutRef.current = setTimeout(() => {
       setShowLocationPopup(true);
     }, 2000); // 2 second delay for first prompt
@@ -31,8 +25,6 @@ const FirstVisitLocationPrompt = () => {
   const handleLocationUpdate = (newLocation) => {
     localStorage.setItem('userPreferredLocation', newLocation);
     setShowLocationPopup(false);
-    clearTimeout(timeoutRef.current);
-    clearInterval(intervalRef.current);
     console.log('Location set to:', newLocation);
   };
 

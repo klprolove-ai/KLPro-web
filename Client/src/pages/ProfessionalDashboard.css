@@ -111,6 +111,60 @@
   background: linear-gradient(135deg, #20ba5a 0%, #1da85c 100%);
 }
 
+.pro-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-top: 12px;
+  margin-left: 8px;
+  padding: 0.85rem 1.1rem;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+  letter-spacing: 0.01em;
+}
+
+.pro-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.2);
+  filter: saturate(1.05);
+}
+
+.pro-action-btn:focus-visible {
+  outline: 3px solid rgba(26, 115, 232, 0.28);
+  outline-offset: 3px;
+}
+
+.pro-action-btn-orders {
+  background: linear-gradient(135deg, #1f6feb 0%, #4f8df7 100%);
+}
+
+.pro-action-btn-wallet {
+  background: linear-gradient(135deg, #0f9d58 0%, #21c47a 100%);
+}
+
+.pro-action-btn-work-orders {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+}
+
+.pro-action-btn-orders:hover {
+  background: linear-gradient(135deg, #1b5fd1 0%, #3f7eea 100%);
+}
+
+.pro-action-btn-wallet:hover {
+  background: linear-gradient(135deg, #0b8a4c 0%, #17b56a 100%);
+}
+
+.pro-action-btn-work-orders:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%);
+}
+
 .pro-app-download {
   display: inline-flex;
   align-items: center;

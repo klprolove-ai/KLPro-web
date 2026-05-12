@@ -374,6 +374,12 @@ function ProfessionalDetails() {
     fetchProfessional();
   }, [id, professional]);
 
+  useEffect(() => {
+    if (!professional?.id) return;
+    fetchReviews(professional.userId || professional.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [professional?.id, professional?.userId, currentReviewPage]);
+
   const liveSlots = useMemo(() => {
     if (!professional) return [];
     return buildLiveSlots({
@@ -391,12 +397,14 @@ function ProfessionalDetails() {
         page: currentReviewPage,
         limit: 5,
       });
-      if (response.success) {
-        setReviews(response.reviews);
-        setTotalReviewPages(response.pagination.pages);
+      const data = response?.data ?? response;
+      if (data.success) {
+        setReviews(data.reviews || []);
+        setTotalReviewPages(data.pagination?.pages || 1);
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
+      setReviews([]);
     } finally {
       setReviewsLoading(false);
     }
@@ -586,10 +594,10 @@ function ProfessionalDetails() {
 
         {isLoggedIn ? (
           <ReviewForm
-            professionalId={professional._id || id}
+            professionalId={professional.id || id}
             onReviewSubmit={() => {
               setCurrentReviewPage(1);
-              fetchReviews(id);
+              fetchReviews(professional.userId || professional.id || id);
             }}
             reviewType="professional"
           />

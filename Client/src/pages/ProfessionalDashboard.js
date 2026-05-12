@@ -5,8 +5,6 @@ import { SERVICE_HIERARCHY, getHierarchyOptions } from '../config/serviceHierarc
 import { getSocket, disconnectSocket } from '../api/socket';
 import { useCall } from '../context/CallContext';
 import LocationPopup from '../components/LocationPopup';
-import WithdrawalForm from '../components/Professional/WithdrawalForm';
-import ProfessionalWalletTopup from '../components/Professional/ProfessionalWalletTopup';
 import './ProfessionalDashboard.css';
 
 const formatCurrency = (amount) => `INR ${Number(amount || 0).toLocaleString('en-IN')}`;
@@ -851,23 +849,23 @@ function ProfessionalDashboard() {
           <button
             type="button"
             onClick={() => navigate('/professional/orders-list')}
-            style={{ marginTop: 12, display: 'inline-block', marginLeft: 8 }}
+            className="pro-action-btn pro-action-btn-orders"
           >
-            📦 Product Orders
+            Product Orders
           </button>
           <button
             type="button"
             onClick={() => navigate('/professional/wallet')}
-            style={{ marginTop: 12, display: 'inline-block', marginLeft: 8 }}
+            className="pro-action-btn pro-action-btn-wallet"
           >
-            💰 Wallet Management
+            Wallet Management
           </button>
           <button
             type="button"
             onClick={() => navigate('/professional/work-orders')}
-            style={{ marginTop: 12, display: 'inline-block', marginLeft: 8 }}
+            className="pro-action-btn pro-action-btn-work-orders"
           >
-            📋 Work Orders
+            Work Orders
           </button>
         </div>
         <div className={`pro-approval ${approvalStatus}`}>
@@ -919,34 +917,6 @@ function ProfessionalDashboard() {
         <article><span>In Progress</span><strong>{stats.inProgress}</strong></article>
         <article><span>Completed</span><strong>{stats.completed}</strong></article>
         <article><span>Total Earnings</span><strong>{formatCurrency(stats.earnings)}</strong></article>
-      </section>
-
-      <section id="wallet-section" className="pro-profile-editor" style={{ marginTop: 24 }}>
-        <div className="pro-editor-header">
-          <h2>Wallet & Withdrawals</h2>
-          <p>View your balance, bank details, and request withdrawals from one place.</p>
-          <button 
-            onClick={() => navigate('/professional/bank-details')}
-            style={{
-              marginTop: 10,
-              padding: '10px 16px',
-              background: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'background 0.2s'
-            }}
-            onMouseOver={(e) => e.target.style.background = '#0056b3'}
-            onMouseOut={(e) => e.target.style.background = '#007bff'}
-          >
-            💳 Verify/Edit Bank Details
-          </button>
-        </div>
-        <ProfessionalWalletTopup />
-        <WithdrawalForm />
       </section>
 
       <section className="pro-profile-editor">
@@ -1179,149 +1149,6 @@ function ProfessionalDashboard() {
             <p><strong>Current Working City:</strong> {profileForm.currentCity || 'Not set'}</p>
             <p><strong>Experience:</strong> {profileForm.experience || '0'} years</p>
             <p><strong>Custom Service Prices:</strong> {profileForm.servicePricing.length}</p>
-          </div>
-        )}
-      </section>
-
-      <section className="pro-jobs-section">
-        <div className="pro-jobs-header">
-          <h2>Work Orders</h2>
-          <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}>
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="in-progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-
-        {filteredJobs.length === 0 ? (
-          <div className="pro-empty-state">
-            <p>No work orders found for the selected filter.</p>
-            <button type="button" onClick={() => navigate('/services')}>Browse Services</button>
-          </div>
-        ) : (
-          <div className="pro-job-list">
-            {filteredJobs.map((job) => (
-              <article key={job._id} className="pro-job-card">
-                <div className="pro-job-top">
-                  <h3>{job?.serviceId?.name || 'Service Request'}</h3>
-                  <span className={`job-status ${job.status}`}>{job.status}</span>
-                </div>
-
-                <p><strong>Customer:</strong> {job?.customerId?.name || 'N/A'}</p>
-                <p><strong>Date:</strong> {job?.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString() : 'N/A'} at {job?.scheduledTime || 'N/A'}</p>
-                <p><strong>Amount:</strong> {formatCurrency(job?.price)}</p>
-                <p><strong>Location:</strong> {job?.serviceAddress?.city || profile.city || 'N/A'}</p>
-
-                <div className="job-actions">
-                  {['confirmed', 'in-progress'].includes(job.status) && (
-                    <button
-                      type="button"
-                      onClick={() => handleAudioCall(job._id)}
-                      disabled={isCallBusy || callingBookingId === job._id}
-                    >
-                      {callingBookingId === job._id ? 'Connecting Call...' : 'Audio Call'}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => updateStatus(job._id, 'confirmed')}
-                    disabled={updatingId === job._id || job.status !== 'pending'}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateStatus(job._id, 'rejected')}
-                    disabled={updatingId === job._id || job.status !== 'pending'}
-                  >
-                    Reject
-                  </button>
-                </div>
-
-                {job.status === 'confirmed' && (
-                  <div className="job-actions">
-                    <input
-                      type="text"
-                      placeholder="Enter start OTP"
-                      value={startOtpInputs[job._id] || ''}
-                      onChange={(event) =>
-                        setStartOtpInputs((prev) => ({
-                          ...prev,
-                          [job._id]: event.target.value,
-                        }))
-                      }
-                    />
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                      capture="environment"
-                      onChange={(event) => handleStartPhotoSelect(job._id, event.target.files?.[0] || null)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => startWorkWithOtp(job._id)}
-                      disabled={updatingId === job._id}
-                    >
-                      Start Work (OTP + Photo)
-                    </button>
-                  </div>
-                )}
-
-                {job.status === 'in-progress' && (
-                  <div className="job-actions">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                      capture="environment"
-                      onChange={(event) => handleEndPhotoSelect(job._id, event.target.files?.[0] || null)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => prepareCompletionOtp(job._id)}
-                      disabled={updatingId === job._id}
-                    >
-                      Upload End Photo & Generate Final OTP
-                    </button>
-
-                    {job?.completionOtpIssuedAt ? (
-                      <>
-                        <input
-                          type="text"
-                          placeholder="Enter final OTP from user"
-                          value={completionOtpInputs[job._id] || ''}
-                          onChange={(event) =>
-                            setCompletionOtpInputs((prev) => ({
-                              ...prev,
-                              [job._id]: event.target.value,
-                            }))
-                          }
-                        />
-                        <button
-                          type="button"
-                          onClick={() => completeWithOtp(job._id)}
-                          disabled={updatingId === job._id}
-                        >
-                          Verify Final OTP & Complete
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                )}
-
-                <div className="job-actions">
-                  <button
-                    type="button"
-                    onClick={() => updateStatus(job._id, 'cancelled')}
-                    disabled={updatingId === job._id || !['confirmed', 'in-progress'].includes(job.status)}
-                  >
-                    Cancel Job
-                  </button>
-                </div>
-              </article>
-            ))}
           </div>
         )}
       </section>
