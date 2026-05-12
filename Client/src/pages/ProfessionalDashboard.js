@@ -9,72 +9,10 @@ import './ProfessionalDashboard.css';
 
 const formatCurrency = (amount) => `INR ${Number(amount || 0).toLocaleString('en-IN')}`;
 
-const isSupportedUploadImage = (file) => {
-  if (!file) return false;
-
-  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-  if (allowedMimeTypes.includes(String(file.type || '').toLowerCase())) return true;
-
-  const lowerName = String(file.name || '').toLowerCase();
-  return ['.jpg', '.jpeg', '.png', '.webp'].some((ext) => lowerName.endsWith(ext));
-};
-
-const canvasToBlob = (canvas, mimeType, quality) =>
-  new Promise((resolve) => {
-    canvas.toBlob((blob) => resolve(blob), mimeType, quality);
-  });
-
-const optimizeImageFile = async (file) => {
-  // If file is already small enough and in web-friendly format, keep as-is.
-  const safeMime = String(file.type || '').toLowerCase();
-  if (file.size <= 4.5 * 1024 * 1024 && ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(safeMime)) {
-    return file;
-  }
-
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const image = await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('Unable to process selected image'));
-      img.src = objectUrl;
-    });
-
-    const maxDimension = 1600;
-    const ratio = Math.min(maxDimension / image.width, maxDimension / image.height, 1);
-    const targetWidth = Math.max(1, Math.round(image.width * ratio));
-    const targetHeight = Math.max(1, Math.round(image.height * ratio));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-
-    const context = canvas.getContext('2d');
-    context.drawImage(image, 0, 0, targetWidth, targetHeight);
-
-    let quality = 0.9;
-    let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
-
-    while (blob && blob.size > 4.5 * 1024 * 1024 && quality > 0.45) {
-      quality -= 0.1;
-      blob = await canvasToBlob(canvas, 'image/jpeg', quality);
-    }
-
-    if (!blob) {
-      throw new Error('Unable to prepare image for upload');
-    }
-
-    const baseName = String(file.name || 'work-photo').replace(/\.[a-z0-9]+$/i, '');
-    return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-};
-
 function ProfessionalDashboard() {
   const navigate = useNavigate();
   const token = localStorage.getItem('userToken') || localStorage.getItem('token') || '';
-  const { startBookingAudioCall, startKycVideoCall, isCallBusy } = useCall();
+  const { startKycVideoCall, isCallBusy } = useCall();
 
   const [profile, setProfile] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -98,18 +36,11 @@ function ProfessionalDashboard() {
   const [verificationScheduledTime, setVerificationScheduledTime] = useState('');
   const [verificationNotification, setVerificationNotification] = useState('');
   const [verificationMeetingLink, setVerificationMeetingLink] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
-  const [updatingId, setUpdatingId] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [startOtpInputs, setStartOtpInputs] = useState({});
-  const [startPhotoFiles, setStartPhotoFiles] = useState({});
-  const [endPhotoFiles, setEndPhotoFiles] = useState({});
-  const [completionOtpInputs, setCompletionOtpInputs] = useState({});
-  const [callingBookingId, setCallingBookingId] = useState('');
   const [isKycCalling, setIsKycCalling] = useState(false);
   const [showLocationPopup, setShowLocationPopup] = useState(false);
 
@@ -385,210 +316,6 @@ function ProfessionalDashboard() {
     return { total, pending, inProgress, completed, earnings };
   }, [jobs]);
 
-  const filteredJobs = useMemo(() => {
-    if (activeFilter === 'all') return jobs;
-    return jobs.filter((job) => job.status === activeFilter);
-  }, [activeFilter, jobs]);
-
-  const updateStatus = async (bookingId, status) => {
-    try {
-      setUpdatingId(bookingId);
-      const response = await fetch(`${API_BASE_URL}/bookings/professional/${bookingId}/status`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to update booking status');
-      }
-
-      setJobs((prev) => prev.map((job) => (job._id === bookingId ? data : job)));
-    } catch (updateError) {
-      setError(updateError.message || 'Failed to update booking status');
-    } finally {
-      setUpdatingId('');
-    }
-  };
-
-  const startWorkWithOtp = async (bookingId) => {
-    try {
-      const otpValue = String(startOtpInputs[bookingId] || '').trim();
-      const photoFile = startPhotoFiles[bookingId];
-
-      if (!otpValue) {
-        setError('Start OTP is required to begin work.');
-        return;
-      }
-
-      if (!photoFile) {
-        setError('Please upload start work photo.');
-        return;
-      }
-
-      if (!isSupportedUploadImage(photoFile)) {
-        setError('Start photo must be JPG, PNG, or WebP. Please retake photo in these formats.');
-        return;
-      }
-
-      setUpdatingId(bookingId);
-      setError('');
-
-      const payload = new FormData();
-      payload.append('startOtp', otpValue);
-      payload.append('startPhoto', photoFile);
-
-      const response = await fetch(`${API_BASE_URL}/bookings/professional/${bookingId}/start`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: payload,
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to verify start OTP');
-      }
-
-      setJobs((prev) => prev.map((job) => (job._id === bookingId ? data.booking : job)));
-      setStartOtpInputs((prev) => ({ ...prev, [bookingId]: '' }));
-      setStartPhotoFiles((prev) => ({ ...prev, [bookingId]: null }));
-    } catch (startError) {
-      setError(startError.message || 'Failed to start work');
-    } finally {
-      setUpdatingId('');
-    }
-  };
-
-  const prepareCompletionOtp = async (bookingId) => {
-    try {
-      const photoFile = endPhotoFiles[bookingId];
-      if (!photoFile) {
-        setError('Please upload completion photo first.');
-        return;
-      }
-
-      if (!isSupportedUploadImage(photoFile)) {
-        setError('Completion photo must be JPG, PNG, or WebP. Please retake photo in these formats.');
-        return;
-      }
-
-      setUpdatingId(bookingId);
-      setError('');
-
-      const payload = new FormData();
-      payload.append('endPhoto', photoFile);
-
-      const response = await fetch(`${API_BASE_URL}/bookings/professional/${bookingId}/prepare-completion`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: payload,
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to generate completion OTP');
-      }
-
-      setJobs((prev) => prev.map((job) => (job._id === bookingId ? data.booking : job)));
-      setSaveMessage('Final OTP generated. Ask the customer to check it in their booking page.');
-      setEndPhotoFiles((prev) => ({ ...prev, [bookingId]: null }));
-    } catch (completeError) {
-      setError(completeError.message || 'Failed to prepare completion OTP');
-    } finally {
-      setUpdatingId('');
-    }
-  };
-
-  const completeWithOtp = async (bookingId) => {
-    try {
-      const completionOtp = String(completionOtpInputs[bookingId] || '').trim();
-      if (!completionOtp) {
-        setError('Please enter final OTP provided by customer.');
-        return;
-      }
-
-      setUpdatingId(bookingId);
-      setError('');
-
-      const response = await fetch(`${API_BASE_URL}/bookings/professional/${bookingId}/complete`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ completionOtp }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to complete booking');
-      }
-
-      setJobs((prev) => prev.map((job) => (job._id === bookingId ? data.booking : job)));
-      setCompletionOtpInputs((prev) => ({ ...prev, [bookingId]: '' }));
-      setSaveMessage('Booking completed successfully.');
-    } catch (completeError) {
-      setError(completeError.message || 'Failed to complete booking');
-    } finally {
-      setUpdatingId('');
-    }
-  };
-
-  const handleStartPhotoSelect = async (jobId, selectedFile) => {
-    if (!selectedFile) {
-      setStartPhotoFiles((prev) => ({ ...prev, [jobId]: null }));
-      return;
-    }
-
-    try {
-      setError('');
-      const preparedFile = await optimizeImageFile(selectedFile);
-      if (!isSupportedUploadImage(preparedFile)) {
-        setError('Start photo must be JPG, PNG, or WebP.');
-        return;
-      }
-
-      setStartPhotoFiles((prev) => ({
-        ...prev,
-        [jobId]: preparedFile,
-      }));
-    } catch (photoError) {
-      setError(photoError.message || 'Failed to prepare start photo. Please choose another image.');
-    }
-  };
-
-  const handleEndPhotoSelect = async (jobId, selectedFile) => {
-    if (!selectedFile) {
-      setEndPhotoFiles((prev) => ({ ...prev, [jobId]: null }));
-      return;
-    }
-
-    try {
-      setError('');
-      const preparedFile = await optimizeImageFile(selectedFile);
-      if (!isSupportedUploadImage(preparedFile)) {
-        setError('Completion photo must be JPG, PNG, or WebP.');
-        return;
-      }
-
-      setEndPhotoFiles((prev) => ({
-        ...prev,
-        [jobId]: preparedFile,
-      }));
-    } catch (photoError) {
-      setError(photoError.message || 'Failed to prepare completion photo. Please choose another image.');
-    }
-  };
-
   const handleProfileFieldChange = (event) => {
     const { name, value } = event.target;
 
@@ -751,18 +478,6 @@ function ProfessionalDashboard() {
       setError(saveError.message || 'Failed to save professional profile');
     } finally {
       setSavingProfile(false);
-    }
-  };
-
-  const handleAudioCall = async (bookingId) => {
-    try {
-      setError('');
-      setCallingBookingId(bookingId);
-      await startBookingAudioCall(bookingId);
-    } catch (callError) {
-      setError(callError.message || 'Unable to start booking audio call.');
-    } finally {
-      setCallingBookingId('');
     }
   };
 

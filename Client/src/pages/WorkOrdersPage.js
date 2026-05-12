@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/apiConfig';
@@ -15,37 +15,7 @@ const WorkOrdersPage = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-    fetchWorkOrders();
-  }, [navigate]);
-
-  useEffect(() => {
-    // inline filter logic to avoid missing dependency lint warnings
-    let filtered = workOrders;
-
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(order => order.status === filterStatus);
-    }
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(order => 
-        order.userName?.toLowerCase().includes(search) ||
-        order.userEmail?.toLowerCase().includes(search) ||
-        order.serviceName?.toLowerCase().includes(search) ||
-        order._id?.includes(search)
-      );
-    }
-
-    setFilteredOrders(filtered);
-  }, [workOrders, filterStatus, searchTerm]);
-
-  const normalizeWorkOrder = (booking) => {
+  const normalizeWorkOrder = useCallback((booking) => {
     const serviceAddress = booking?.serviceAddress || {};
     const locationParts = [serviceAddress.street, serviceAddress.city, serviceAddress.state, serviceAddress.zipCode]
       .map(part => String(part || '').trim())
@@ -63,9 +33,9 @@ const WorkOrdersPage = () => {
       description: booking?.notes || booking?.description || '',
       location: locationParts.join(', '),
     };
-  };
+  }, []);
 
-  const fetchWorkOrders = async () => {
+  const fetchWorkOrders = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -88,9 +58,37 @@ const WorkOrdersPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [normalizeWorkOrder]);
 
-  
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    fetchWorkOrders();
+  }, [navigate, fetchWorkOrders]);
+
+  useEffect(() => {
+    // inline filter logic to avoid missing dependency lint warnings
+    let filtered = workOrders;
+
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(order => order.status === filterStatus);
+    }
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.userName?.toLowerCase().includes(search) ||
+        order.userEmail?.toLowerCase().includes(search) ||
+        order.serviceName?.toLowerCase().includes(search) ||
+        order._id?.includes(search)
+      );
+    }
+
+    setFilteredOrders(filtered);
+  }, [workOrders, filterStatus, searchTerm]);
 
   const getStatusColor = (status) => {
     const colors = {
