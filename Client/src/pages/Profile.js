@@ -311,8 +311,10 @@ function Profile() {
             </div>
           </div>
         </div>
-        <div className="profile-hero-actions">
+          <div className="profile-hero-actions">
           <button type="button" onClick={() => navigate('/bookings')}>My Orders</button>
+          <button type="button" onClick={() => navigate('/user/bookings')}>Professional Bookings</button>
+          <button type="button" onClick={() => navigate('/orders-list')}>My Product Orders</button>
           <button type="button" onClick={() => navigate('/services')}>Explore Services</button>
           <button type="button" onClick={openEditProfile}>Edit Profile</button>
           <a 

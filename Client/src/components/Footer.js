@@ -48,6 +48,8 @@ function Footer() {
                 <li><a href="/services">AC & Appliance Repair</a></li>
                 <li><a href="/services">Electrician & Plumber & Carpenter & Mason</a></li>
                 <li><a href="/services">Home Decoration</a></li>
+                <li><a href="/services">Property Services</a></li>
+                <li><a href="/services">Snap Click</a></li>
               </ul>
             </div>
 

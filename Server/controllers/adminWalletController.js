@@ -451,4 +451,293 @@ exports.getPaymentAnalytics = async (req, res) => {
   }
 };
 
+// ============ BANK DETAILS VERIFICATION ============
+
+// Get pending bank details for verification
+exports.getPendingBankDetails = async (req, res) => {
+  try {
+    const BankDetails = require('../models/BankDetails');
+    const { status = 'pending', limit = 50, skip = 0 } = req.query;
+
+    const query = { verificationStatus: status };
+    const total = await BankDetails.countDocuments(query);
+    
+    const bankDetailsList = await BankDetails.find(query)
+      .populate('userId', 'name email phone')
+      .populate({
+        path: 'professionalId',
+        select: 'userId category subCategory',
+        populate: {
+          path: 'userId',
+          select: 'name email phone',
+        },
+      })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        total,
+        limit: parseInt(limit),
+        skip: parseInt(skip),
+        bankDetails: bankDetailsList,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching pending bank details:', error);
+    res.status(500).json({ message: 'Error fetching bank details', error: error.message });
+  }
+};
+
+// Verify professional bank details
+exports.verifyBankDetails = async (req, res) => {
+  try {
+    const BankDetails = require('../models/BankDetails');
+    const { bankDetailsId, status, rejectionReason } = req.body;
+
+    if (!bankDetailsId || !status || !['verified', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid verification request' });
+    }
+
+    if (status === 'rejected' && !rejectionReason) {
+      return res.status(400).json({ message: 'Rejection reason is required' });
+    }
+
+    const bankDetails = await BankDetails.findById(bankDetailsId);
+    if (!bankDetails) {
+      return res.status(404).json({ message: 'Bank details not found' });
+    }
+
+    if (status === 'verified') {
+      bankDetails.verificationStatus = 'verified';
+      bankDetails.verifiedAt = new Date();
+      bankDetails.verificationAttempts += 1;
+    } else if (status === 'rejected') {
+      bankDetails.verificationStatus = 'rejected';
+      bankDetails.verificationFailureReason = rejectionReason;
+      bankDetails.verificationFailedAt = new Date();
+      bankDetails.verificationAttempts += 1;
+    }
+
+    await bankDetails.save();
+
+    // Optionally send notification to professional
+    // TODO: Add email/SMS notification logic here
+
+    res.status(200).json({
+      success: true,
+      message: `Bank details ${status} successfully`,
+      data: bankDetails,
+    });
+  } catch (error) {
+    console.error('Error verifying bank details:', error);
+    res.status(500).json({ message: 'Error verifying bank details', error: error.message });
+  }
+};
+
+// ============ WITHDRAWAL MANAGEMENT ============
+
+// Get all pending withdrawal requests
+exports.getPendingWithdrawals = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status = 'pending' } = req.query;
+
+    const withdrawals = await Transaction.find({
+      type: 'withdrawal_initiated',
+      status: status,
+    })
+      .populate('professionalId', 'name email phone -_id')
+      .populate('walletId', 'professionalId -_id')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Transaction.countDocuments({
+      type: 'withdrawal_initiated',
+      status: status,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: withdrawals,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching pending withdrawals:', error);
+    res.status(500).json({ message: 'Error fetching withdrawals', error: error.message });
+  }
+};
+
+// Approve withdrawal request
+exports.approveWithdrawal = async (req, res) => {
+  try {
+    const { withdrawalId } = req.params;
+    const { notes } = req.body;
+
+    const transaction = await Transaction.findById(withdrawalId);
+
+    if (!transaction || transaction.type !== 'withdrawal_initiated') {
+      return res.status(404).json({ message: 'Withdrawal request not found' });
+    }
+
+    if (transaction.status !== 'pending') {
+      return res.status(400).json({ message: `Cannot approve withdrawal with status: ${transaction.status}` });
+    }
+
+    // Update transaction status
+    transaction.status = 'processing';
+    transaction.approvedAt = new Date();
+    transaction.approvedBy = req.user._id;
+    if (notes) transaction.adminNotes = notes;
+
+    await transaction.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Withdrawal approved successfully',
+      data: transaction,
+    });
+  } catch (error) {
+    console.error('Error approving withdrawal:', error);
+    res.status(500).json({ message: 'Error approving withdrawal', error: error.message });
+  }
+};
+
+// Reject withdrawal request
+exports.rejectWithdrawal = async (req, res) => {
+  try {
+    const { withdrawalId } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({ message: 'Rejection reason is required' });
+    }
+
+    const transaction = await Transaction.findById(withdrawalId);
+
+    if (!transaction || transaction.type !== 'withdrawal_initiated') {
+      return res.status(404).json({ message: 'Withdrawal request not found' });
+    }
+
+    if (transaction.status !== 'pending') {
+      return res.status(400).json({ message: `Cannot reject withdrawal with status: ${transaction.status}` });
+    }
+
+    // Refund the amount back to professional wallet
+    const wallet = await ProfessionalWallet.findById(transaction.walletId);
+    if (wallet) {
+      wallet.currentBalance = wallet.currentBalance + transaction.amount;
+      await wallet.save();
+    }
+
+    // Update transaction status
+    transaction.status = 'failed';
+    transaction.rejectedAt = new Date();
+    transaction.rejectedBy = req.user._id;
+    transaction.failureReason = reason;
+
+    await transaction.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Withdrawal rejected and amount refunded',
+      data: transaction,
+    });
+  } catch (error) {
+    console.error('Error rejecting withdrawal:', error);
+    res.status(500).json({ message: 'Error rejecting withdrawal', error: error.message });
+  }
+};
+
+// Mark withdrawal as completed (when actual payout is done)
+exports.completeWithdrawal = async (req, res) => {
+  try {
+    const { withdrawalId } = req.params;
+    const { transactionReference } = req.body;
+
+    const transaction = await Transaction.findById(withdrawalId);
+
+    if (!transaction || transaction.type !== 'withdrawal_initiated') {
+      return res.status(404).json({ message: 'Withdrawal request not found' });
+    }
+
+    if (transaction.status !== 'processing') {
+      return res.status(400).json({ message: `Withdrawal must be in 'processing' status to complete` });
+    }
+
+    // Update transaction
+    transaction.status = 'completed';
+    transaction.completedAt = new Date();
+    if (transactionReference) {
+      transaction.withdrawalDetails.transactionId = transactionReference;
+    }
+
+    await transaction.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Withdrawal marked as completed',
+      data: transaction,
+    });
+  } catch (error) {
+    console.error('Error completing withdrawal:', error);
+    res.status(500).json({ message: 'Error completing withdrawal', error: error.message });
+  }
+};
+
+// Get withdrawal summary for admin dashboard
+exports.getWithdrawalSummary = async (req, res) => {
+  try {
+    const pending = await Transaction.countDocuments({
+      type: 'withdrawal_initiated',
+      status: 'pending',
+    });
+
+    const processing = await Transaction.countDocuments({
+      type: 'withdrawal_initiated',
+      status: 'processing',
+    });
+
+    const completed = await Transaction.countDocuments({
+      type: 'withdrawal_initiated',
+      status: 'completed',
+    });
+
+    const failed = await Transaction.countDocuments({
+      type: 'withdrawal_initiated',
+      status: 'failed',
+    });
+
+    // Get total amounts
+    const pendingAmount = await Transaction.aggregate([
+      { $match: { type: 'withdrawal_initiated', status: 'pending' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+
+    const processingAmount = await Transaction.aggregate([
+      { $match: { type: 'withdrawal_initiated', status: 'processing' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        pending: { count: pending, amount: pendingAmount[0]?.total || 0 },
+        processing: { count: processing, amount: processingAmount[0]?.total || 0 },
+        completed,
+        failed,
+      },
+    });
+  } catch (error) {
+    console.error('Error getting withdrawal summary:', error);
+    res.status(500).json({ message: 'Error fetching summary', error: error.message });
+  }
+};
+
 module.exports = exports;

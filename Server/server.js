@@ -3,7 +3,9 @@ const http = require('http');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { Server } = require('socket.io');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { initPresenceSocket } = require('./realtime/presence');
 
 const app = express();

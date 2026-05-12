@@ -47,8 +47,13 @@ const ProductOrderSchema = new mongoose.Schema(
     razorpaySignature: String,
     orderStatus: {
       type: String,
-      enum: ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
-      default: 'confirmed',
+      enum: ['awaiting_payment', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+      default: 'awaiting_payment',
+    },
+    paymentCreatedAt: {
+      type: Date,
+      default: null,
+      description: 'Timestamp when order was created - used to track pending payment timeout'
     },
   },
   { timestamps: true }

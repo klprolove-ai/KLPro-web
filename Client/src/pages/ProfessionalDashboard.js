@@ -6,6 +6,7 @@ import { getSocket, disconnectSocket } from '../api/socket';
 import { useCall } from '../context/CallContext';
 import LocationPopup from '../components/LocationPopup';
 import WithdrawalForm from '../components/Professional/WithdrawalForm';
+import ProfessionalWalletTopup from '../components/Professional/ProfessionalWalletTopup';
 import './ProfessionalDashboard.css';
 
 const formatCurrency = (amount) => `INR ${Number(amount || 0).toLocaleString('en-IN')}`;
@@ -847,23 +848,27 @@ function ProfessionalDashboard() {
           >
             <span>🔔 Emergency Time - Connect With Whatsapp AI Doctor</span>
           </a>
-          <a 
-            href="https://play.google.com/store/apps/details?id=in.cdac.ners.psa.mobile.android.national" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="app-download-button pro-app-download"
-            title="Download The App For Safety"
+          <button
+            type="button"
+            onClick={() => navigate('/professional/orders-list')}
             style={{ marginTop: 12, display: 'inline-block', marginLeft: 8 }}
           >
-            <span>📱 Click Link & Download The App For Safety</span>
-          </a>
-          <a
-            href="#wallet-section"
-            className="app-download-button pro-app-download"
+            📦 Product Orders
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/professional/wallet')}
             style={{ marginTop: 12, display: 'inline-block', marginLeft: 8 }}
           >
-            <span>💰 Open Wallet</span>
-          </a>
+            💰 Wallet Management
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/professional/work-orders')}
+            style={{ marginTop: 12, display: 'inline-block', marginLeft: 8 }}
+          >
+            📋 Work Orders
+          </button>
         </div>
         <div className={`pro-approval ${approvalStatus}`}>
           <div>Status: {approvalStatus}</div>
@@ -940,6 +945,7 @@ function ProfessionalDashboard() {
             💳 Verify/Edit Bank Details
           </button>
         </div>
+        <ProfessionalWalletTopup />
         <WithdrawalForm />
       </section>
 

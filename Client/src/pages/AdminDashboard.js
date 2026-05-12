@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import AdminServicesSection from '../components/AdminServicesSection';
 import AdminProductsSection from '../components/AdminProductsSection';
 import AdminWalletDashboard from '../components/Admin/AdminDashboard';
+import AdminBankDetailsVerification from '../components/Admin/AdminBankDetailsVerification';
+import AdminWalletCommission from '../components/Admin/AdminWalletCommission';
+import AdminWithdrawalManagement from './AdminWithdrawalManagement';
 import API_BASE_URL from '../config/apiConfig';
 import { SERVICE_HIERARCHY, getHierarchyOptions, getServiceTypeOptions } from '../config/serviceHierarchy';
 import { useCall } from '../context/CallContext';
@@ -1063,9 +1066,12 @@ function AdminDashboard() {
     { id: 'orders', icon: '📦', label: 'Orders', count: productOrders.length },
     { id: 'bookings', icon: '📅', label: 'Bookings', count: bookings.length },
     { id: 'wallet', icon: '💰', label: 'Wallet', count: null },
+    { id: 'withdrawals', icon: '🏦', label: 'Withdrawals', count: null },
     { id: 'customers', icon: '👥', label: 'Customers', count: customerUsers.length },
     { id: 'contacts', icon: '✉️', label: 'Contacts', count: contacts.length },
     { id: 'professionals', icon: '🧑‍🔧', label: 'Professionals', count: professionalUsers.length, pendingCount: verificationQueueCount },
+    { id: 'bank-details', icon: '🏧', label: 'Bank Details', count: null },
+    { id: 'commission', icon: '💸', label: 'Commission Mgmt', count: null },
     { id: 'catalog', icon: '🧾', label: 'Services', count: services.length },
     { id: 'homecards', icon: '🏠', label: 'Home Cards', count: homepageCards.length },
     { id: 'products', icon: '📦', label: 'Products', count: productCount },
@@ -1605,6 +1611,24 @@ function AdminDashboard() {
                   <p>Monitor commissions, cash flow, and professional balances.</p>
                 </div>
                 <AdminWalletDashboard />
+              </section>
+            )}
+
+            {activeTab === 'withdrawals' && (
+              <section className="users-section">
+                <AdminWithdrawalManagement />
+              </section>
+            )}
+
+            {activeTab === 'bank-details' && (
+              <section className="users-section">
+                <AdminBankDetailsVerification />
+              </section>
+            )}
+
+            {activeTab === 'commission' && (
+              <section className="users-section">
+                <AdminWalletCommission />
               </section>
             )}
 

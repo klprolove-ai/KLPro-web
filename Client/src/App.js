@@ -20,12 +20,20 @@ import ProfessionalDashboard from './pages/ProfessionalDashboard';
 import Products from './pages/Products';
 import ProductDetails from './pages/ProductDetails';
 import Cart from './pages/Cart';
+import OrderDetailsUser from './pages/OrderDetailsUser';
+import OrderDetailsProfessional from './pages/OrderDetailsProfessional';
+import OrdersListUser from './pages/OrdersListUser';
+import OrdersListProfessional from './pages/OrdersListProfessional';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsConditions from './pages/TermsConditions';
 import HelpCenter from './pages/HelpCenter';
 import FAQs from './pages/FAQs';
 import Contact from './pages/Contact';
 import BankDetails from './pages/BankDetails';
+import ProfessionalWalletPage from './pages/ProfessionalWalletPage';
+import WorkOrdersPage from './pages/WorkOrdersPage';
+import ProfessionalBookingsPage from './pages/ProfessionalBookingsPage';
+import AdminWithdrawalManagement from './pages/AdminWithdrawalManagement';
 import { CallProvider } from './context/CallContext';
 
 function ScrollToTop() {
@@ -48,6 +56,7 @@ function App() {
             {/* Admin Routes */}
 <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/withdrawals" element={<AdminWithdrawalManagement />} />
 
             {/* User Routes */}
             <Route
@@ -64,13 +73,19 @@ function App() {
                       <Route path="/products" element={<Products />} />
                       <Route path="/product/:id" element={<ProductDetails />} />
                       <Route path="/cart" element={<Cart />} />
+                      <Route path="/orders/:id" element={<OrderDetailsUser />} />
+                      <Route path="/professional/orders/:id" element={<OrderDetailsProfessional />} />
+                      <Route path="/orders-list" element={<OrdersListUser />} />
+                      <Route path="/professional/orders-list" element={<OrdersListProfessional />} />
                       <Route path="/professionals" element={<Professionals />} />
                       <Route path="/professionals/:id" element={<ProfessionalDetails />} />
                       <Route path="/bookings" element={<Bookings />} />
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/professional/dashboard" element={<ProfessionalDashboard />} />
                       <Route path="/professional/bank-details" element={<BankDetails />} />
-                      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                      <Route path="/professional/wallet" element={<ProfessionalWalletPage />} />
+                      <Route path="/professional/work-orders" element={<WorkOrdersPage />} />
+                      <Route path="/user/bookings" element={<ProfessionalBookingsPage />} /><Route path="/privacy-policy" element={<PrivacyPolicy />} />
                       <Route path="/terms-conditions" element={<TermsConditions />} />
                       <Route path="/help-center" element={<HelpCenter />} />
                       <Route path="/faqs" element={<FAQs />} />

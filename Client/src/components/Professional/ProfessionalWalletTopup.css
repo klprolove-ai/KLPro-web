@@ -1,0 +1,423 @@
+.professional-wallet-topup-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.wallet-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 768px) {
+  .wallet-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wallet-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 24px;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.wallet-header {
+  margin-bottom: 20px;
+}
+
+.wallet-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.wallet-balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.balance-label {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.balance-amount {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.wallet-info-text {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.85;
+  line-height: 1.5;
+}
+
+.topup-form-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.topup-form-card h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+}
+
+.alert {
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  border-left: 4px solid;
+}
+
+.alert-error {
+  background-color: #fee;
+  border-left-color: #f44;
+  color: #c33;
+}
+
+.alert-success {
+  background-color: #efe;
+  border-left-color: #4f4;
+  color: #3a3;
+}
+
+.loading-spinner {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary, #666);
+  font-size: 14px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--text-primary, #333);
+}
+
+.amount-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currency-symbol {
+  position: absolute;
+  left: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2196f3;
+}
+
+.amount-input {
+  padding-left: 32px !important;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.form-control {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+  background-color: white;
+  color: var(--text-primary, #333);
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.form-control:disabled {
+  background-color: var(--bg-secondary, #f5f5f5);
+  cursor: not-allowed;
+}
+
+.amount-help {
+  margin-top: 6px;
+}
+
+.amount-help small {
+  color: var(--text-secondary, #666);
+  font-size: 12px;
+}
+
+.payment-info-box {
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+
+.info-title {
+  margin: 0 0 8px 0;
+  font-weight: 600;
+  font-size: 13px;
+  color: #1565c0;
+}
+
+.payment-info-box ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #0d47a1;
+}
+
+.payment-info-box li {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.btn {
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Transactions Section */
+.transactions-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.transactions-section h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+}
+
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transaction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  background-color: var(--bg-secondary, #f5f5f5);
+  border-radius: 6px;
+  border-left: 4px solid #2196f3;
+  transition: all 0.2s ease;
+}
+
+.transaction-item:hover {
+  background-color: var(--bg-hover, #f0f0f0);
+}
+
+.transaction-info {
+  flex: 1;
+}
+
+.transaction-type {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+}
+
+.type-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.type-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary, #333);
+}
+
+.type-date {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+}
+
+.transaction-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.amount {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.amount.positive {
+  color: #4caf50;
+}
+
+.amount.negative {
+  color: #f44336;
+}
+
+.status {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+}
+
+.status-completed {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-processing {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.status-failed {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+/* Dark theme support */
+:root.theme-dark .wallet-card {
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+:root.theme-dark .topup-form-card {
+  background: #2a2a2a;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+:root.theme-dark .topup-form-card h3 {
+  color: #e0e0e0;
+}
+
+:root.theme-dark .alert-error {
+  background-color: #3a2222;
+  color: #ff6b6b;
+  border-left-color: #ff6b6b;
+}
+
+:root.theme-dark .alert-success {
+  background-color: #223a22;
+  color: #6bff6b;
+  border-left-color: #6bff6b;
+}
+
+:root.theme-dark .form-group label {
+  color: #e0e0e0;
+}
+
+:root.theme-dark .form-control {
+  background-color: #333;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+:root.theme-dark .form-control:focus {
+  border-color: #2196f3;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
+}
+
+:root.theme-dark .form-control:disabled {
+  background-color: #1e1e1e;
+}
+
+:root.theme-dark .amount-help small {
+  color: #b0b0b0;
+}
+
+:root.theme-dark .payment-info-box {
+  background-color: #1a3a5c;
+  border-left-color: #2196f3;
+}
+
+:root.theme-dark .info-title {
+  color: #90caf9;
+}
+
+:root.theme-dark .payment-info-box ul {
+  color: #64b5f6;
+}
+
+:root.theme-dark .transactions-section {
+  background: #2a2a2a;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+:root.theme-dark .transactions-section h3 {
+  color: #e0e0e0;
+}
+
+:root.theme-dark .transaction-item {
+  background-color: #333;
+  border-left-color: #2196f3;
+}
+
+:root.theme-dark .transaction-item:hover {
+  background-color: #3a3a3a;
+}
+
+:root.theme-dark .type-label {
+  color: #e0e0e0;
+}
+
+:root.theme-dark .type-date {
+  color: #b0b0b0;
+}

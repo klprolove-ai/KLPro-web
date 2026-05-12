@@ -8,6 +8,10 @@ router.post('/create-order-booking', auth, paymentController.createOrderForBooki
 router.post('/create-order-product', auth, paymentController.createOrderForProduct);
 router.post('/create-cash-payment', auth, paymentController.createCashPayment);
 
+// Wallet top-up routes
+router.post('/create-topup-order', auth, paymentController.createTopupOrder);
+router.post('/verify-topup', auth, paymentController.verifyTopupPayment);
+
 // Payment verification
 router.post('/verify', auth, paymentController.verifyPayment);
 

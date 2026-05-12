@@ -5,7 +5,10 @@ import './BankDetails.css';
 
 const BankDetailsForm = () => {
   const [formData, setFormData] = useState({
+    accountHolderName: '',
     accountNumber: '',
+    bankName: '',
+    branchName: '',
     ifscCode: '',
     upiId: '',
     paymentMethods: []
@@ -35,7 +38,10 @@ const BankDetailsForm = () => {
       if (response.data?.data) {
         setBankDetails(response.data.data);
         setFormData({
+          accountHolderName: response.data.data.accountHolderName || '',
           accountNumber: response.data.data.accountNumber || '',
+          bankName: response.data.data.bankName || '',
+          branchName: response.data.data.branchName || '',
           ifscCode: response.data.data.ifscCode || '',
           upiId: response.data.data.upiId || '',
           paymentMethods: response.data.data.paymentMethods || []
@@ -71,8 +77,16 @@ const BankDetailsForm = () => {
   };
 
   const validateForm = () => {
+    if (!formData.accountHolderName.trim()) {
+      setError('Account holder name is required');
+      return false;
+    }
     if (!formData.accountNumber.trim()) {
       setError('Account number is required');
+      return false;
+    }
+    if (!formData.bankName.trim()) {
+      setError('Bank name is required');
       return false;
     }
     if (!formData.ifscCode.trim()) {
@@ -151,6 +165,20 @@ const BankDetailsForm = () => {
       {bankDetails && !isEditing ? (
         <div className="bank-details-display">
           <div className="detail-row">
+            <span className="label">Account Holder:</span>
+            <span className="value">{bankDetails.accountHolderName}</span>
+          </div>
+          <div className="detail-row">
+            <span className="label">Bank Name:</span>
+            <span className="value">{bankDetails.bankName}</span>
+          </div>
+          {bankDetails.branchName && (
+            <div className="detail-row">
+              <span className="label">Branch:</span>
+              <span className="value">{bankDetails.branchName}</span>
+            </div>
+          )}
+          <div className="detail-row">
             <span className="label">Account Number:</span>
             <span className="value">****{maskedAccountSuffix}</span>
           </div>
@@ -185,6 +213,50 @@ const BankDetailsForm = () => {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="bank-form">
+          <div className="form-group">
+            <label htmlFor="accountHolderName">Account Holder Name *</label>
+            <input
+              type="text"
+              id="accountHolderName"
+              name="accountHolderName"
+              value={formData.accountHolderName}
+              onChange={handleChange}
+              placeholder="Enter your full name"
+              required
+              disabled={submitting}
+            />
+            <small>Name as it appears on your bank account</small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="bankName">Bank Name *</label>
+            <input
+              type="text"
+              id="bankName"
+              name="bankName"
+              value={formData.bankName}
+              onChange={handleChange}
+              placeholder="e.g., HDFC Bank, ICICI Bank"
+              required
+              disabled={submitting}
+            />
+            <small>Name of your bank</small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="branchName">Branch Name (Optional)</label>
+            <input
+              type="text"
+              id="branchName"
+              name="branchName"
+              value={formData.branchName}
+              onChange={handleChange}
+              placeholder="e.g., New Delhi Main Branch"
+              disabled={submitting}
+            />
+            <small>Branch name for reference</small>
+          </div>
+
           <div className="form-group">
             <label htmlFor="accountNumber">Account Number *</label>
             <input
@@ -285,7 +357,10 @@ const BankDetailsForm = () => {
                 onClick={() => {
                   setIsEditing(false);
                   setFormData({
+                    accountHolderName: bankDetails?.accountHolderName || '',
                     accountNumber: bankDetails?.accountNumber || '',
+                    bankName: bankDetails?.bankName || '',
+                    branchName: bankDetails?.branchName || '',
                     ifscCode: bankDetails?.ifscCode || '',
                     upiId: bankDetails?.upiId || '',
                     paymentMethods: bankDetails?.paymentMethods || []

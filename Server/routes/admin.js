@@ -115,7 +115,9 @@ router.get('/bookings', verifyAdminToken, async (req, res) => {
 
 router.get('/orders', verifyAdminToken, async (req, res) => {
   try {
-    const orders = await ProductOrder.find()
+    // Only show orders that have been confirmed (payment completed or COD)
+    // Exclude orders in 'awaiting_payment' status that were never paid
+    const orders = await ProductOrder.find({ orderStatus: { $ne: 'awaiting_payment' } })
       .populate('customerId', 'name email phone city')
       .sort({ createdAt: -1 });
 
@@ -143,6 +145,7 @@ router.get('/orders/:id', verifyAdminToken, async (req, res) => {
 router.patch('/orders/:id/status', verifyAdminToken, async (req, res) => {
   try {
     const { orderStatus } = req.body;
+    // Note: 'awaiting_payment' status is reserved for unpaid orders - admins cannot manually set this
     const allowedStatuses = ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
 
     if (!orderStatus || !allowedStatuses.includes(orderStatus)) {
@@ -152,6 +155,11 @@ router.patch('/orders/:id/status', verifyAdminToken, async (req, res) => {
     const order = await ProductOrder.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Prevent status change if order is still awaiting payment
+    if (order.orderStatus === 'awaiting_payment') {
+      return res.status(400).json({ success: false, message: 'Cannot update order status - payment is still pending. Order will be deleted if payment is not completed.' });
     }
 
     order.orderStatus = orderStatus;
@@ -206,6 +214,27 @@ router.delete('/bookings/:id', verifyAdminToken, async (req, res) => {
     await booking.save();
 
     res.json({ success: true, message: 'Booking history deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Clean up abandoned product orders (awaiting_payment status older than 30 minutes)
+router.post('/cleanup/abandoned-orders', verifyAdminToken, async (req, res) => {
+  try {
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    
+    // Delete orders that are still in 'awaiting_payment' status and were created more than 30 minutes ago
+    const result = await ProductOrder.deleteMany({
+      orderStatus: 'awaiting_payment',
+      paymentCreatedAt: { $lt: thirtyMinutesAgo }
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Deleted ${result.deletedCount} abandoned orders`,
+      deletedCount: result.deletedCount
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

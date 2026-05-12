@@ -2,10 +2,14 @@
   max-width: 600px;
   margin: 0 auto;
   padding: 20px;
+  scroll-margin-top: 120px;
+  margin-top: 120px;
+  position: relative;
 }
 
 .header {
   margin-bottom: 20px;
+  padding-top: 4px;
 }
 
 .header h2 {

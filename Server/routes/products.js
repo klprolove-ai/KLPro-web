@@ -12,6 +12,10 @@ const {
   deleteProductImage,
   getProductCategories,
   createProductOrder,
+  getProductOrder,
+  cancelProductOrder,
+  getMyOrders,
+  getProfessionalOrders,
   bulkUploadProducts
 } = require('../controllers/productController');
 
@@ -26,6 +30,11 @@ router.get('/', getAllProducts);
 
 // User routes - MUST be before /:id route to avoid conflict
 router.post('/create-order', verifyToken, createProductOrder);
+// Order endpoints for users/professionals
+router.get('/orders/:id', verifyToken, getProductOrder);
+router.patch('/orders/:id/cancel', verifyToken, cancelProductOrder);
+router.get('/my-orders', verifyToken, getMyOrders);
+router.get('/professional/orders', verifyToken, getProfessionalOrders);
 
 // Product details route - AFTER specific routes
 router.get('/:id', getProductById);

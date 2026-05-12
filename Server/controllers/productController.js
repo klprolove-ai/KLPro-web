@@ -394,6 +394,8 @@ exports.createProductOrder = async (req, res) => {
       });
     }
 
+    // For online payment, create order with 'awaiting_payment' status
+    // For COD, create order with 'confirmed' status
     const productOrder = new ProductOrder({
       customerId: userId,
       products,
@@ -404,7 +406,8 @@ exports.createProductOrder = async (req, res) => {
       total,
       paymentMethod: paymentMethod === 'online' ? 'razorpay' : 'cod',
       paymentStatus: paymentMethod === 'online' ? 'pending' : 'pending',
-      orderStatus: 'confirmed',
+      orderStatus: paymentMethod === 'online' ? 'awaiting_payment' : 'confirmed',
+      paymentCreatedAt: paymentMethod === 'online' ? new Date() : null,
     });
 
     await productOrder.save();
@@ -423,6 +426,175 @@ exports.createProductOrder = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// Get product order for user or professional
+exports.getProductOrder = async (req, res) => {
+  try {
+    const ProductOrder = require('../models/ProductOrder');
+    const Product = require('../models/Product');
+    const Professional = require('../models/Professional');
+
+    const orderId = req.params.id;
+    const userId = req.user._id;
+
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: 'Order ID is required' });
+    }
+
+    const order = await ProductOrder.findById(orderId).populate('customerId', 'name email phone');
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Allow access if requester is the customer
+    if (order.customerId && order.customerId._id.toString() === userId.toString()) {
+      return res.json({ success: true, order });
+    }
+
+    // Or allow if requester is a professional who owns any product in this order
+    const professional = await Professional.findOne({ userId });
+    if (professional) {
+      // Check if any product in order was created by this professional
+      for (const item of order.products) {
+        const prod = await Product.findById(item.productId).select('createdBy');
+        if (prod && prod.createdBy && prod.createdBy.toString() === professional._id.toString()) {
+          return res.json({ success: true, order });
+        }
+      }
+    }
+
+    return res.status(403).json({ success: false, message: 'Not authorized to view this order' });
+  } catch (error) {
+    console.error('Error fetching product order:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// List orders for current user
+exports.getMyOrders = async (req, res) => {
+  try {
+    const ProductOrder = require('../models/ProductOrder');
+    const userId = req.user._id;
+
+    const orders = await ProductOrder.find({ customerId: userId, orderStatus: { $ne: 'awaiting_payment' } })
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, orders });
+  } catch (error) {
+    console.error('Error fetching user orders:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// List orders relevant to the professional (orders that include products created by them)
+exports.getProfessionalOrders = async (req, res) => {
+  try {
+    const ProductOrder = require('../models/ProductOrder');
+    const Product = require('../models/Product');
+    const Professional = require('../models/Professional');
+
+    const userId = req.user._id;
+    const professional = await Professional.findOne({ userId });
+    if (!professional) return res.status(403).json({ success: false, message: 'Not a professional' });
+
+    // Find products created by this professional
+    const proProducts = await Product.find({ createdBy: professional._id }).select('_id');
+    const proProductIds = proProducts.map((p) => p._id.toString());
+
+    // Find orders that contain any of these products
+    const orders = await ProductOrder.find({
+      'products.productId': { $in: proProductIds },
+      orderStatus: { $ne: 'awaiting_payment' },
+    }).sort({ createdAt: -1 });
+
+    res.json({ success: true, orders });
+  } catch (error) {
+    console.error('Error fetching professional orders:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Cancel product order (by customer or professional owner)
+exports.cancelProductOrder = async (req, res) => {
+  try {
+    const ProductOrder = require('../models/ProductOrder');
+    const Product = require('../models/Product');
+    const Professional = require('../models/Professional');
+    const Payment = require('../models/Payment');
+
+    const orderId = req.params.id;
+    const userId = req.user._id;
+
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: 'Order ID is required' });
+    }
+
+    const order = await ProductOrder.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Authorization: customer or professional owner
+    let authorized = false;
+    if (order.customerId && order.customerId.toString() === userId.toString()) authorized = true;
+
+    if (!authorized) {
+      const professional = await Professional.findOne({ userId });
+      if (professional) {
+        for (const item of order.products) {
+          const prod = await Product.findById(item.productId).select('createdBy');
+          if (prod && prod.createdBy && prod.createdBy.toString() === professional._id.toString()) {
+            authorized = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!authorized) {
+      return res.status(403).json({ success: false, message: 'Not authorized to cancel this order' });
+    }
+
+    // Prevent cancelling already delivered/cancelled orders
+    if (['delivered', 'cancelled'].includes(order.orderStatus)) {
+      return res.status(400).json({ success: false, message: 'Order cannot be cancelled' });
+    }
+
+    order.orderStatus = 'cancelled';
+    // If payment was pending/initiated, mark as cancelled; if completed, mark payment as cancelled (refunds not handled here)
+    if (order.paymentStatus === 'pending' || order.paymentStatus === 'initiated') {
+      order.paymentStatus = 'failed';
+    }
+
+    await order.save();
+
+    // Update any associated payment record and attempt refund if payment completed
+    try {
+      const payment = await Payment.findOne({ referenceType: 'product_order', referenceId: order._id });
+      if (payment) {
+        if (payment.status === 'completed') {
+          try {
+            const paymentController = require('./paymentController');
+            await paymentController.performRefund(payment, req.user._id, order._id);
+          } catch (refundErr) {
+            console.error('Refund failed via paymentController:', refundErr);
+          }
+        }
+
+        // mark cancelled locally
+        payment.status = 'cancelled';
+        await payment.save();
+      }
+    } catch (err) {
+      console.warn('No associated payment to update or error updating payment:', err.message);
+    }
+
+    res.json({ success: true, message: 'Order cancelled successfully', order });
+  } catch (error) {
+    console.error('Error cancelling product order:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

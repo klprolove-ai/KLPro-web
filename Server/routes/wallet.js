@@ -17,6 +17,10 @@ router.get('/bank-details', auth, walletController.getBankDetails);
 // Withdrawal operations
 router.post('/initiate-withdrawal', auth, walletController.initiateWithdrawal);
 
+// Wallet fund management
+router.post('/add-funds', auth, walletController.addFundsToWallet);
+router.post('/deduct-commission', auth, walletController.deductCommissionFromWallet);
+
 // Refunds visibility
 router.get('/my-refunds', auth, walletController.getUserRefunds);
 

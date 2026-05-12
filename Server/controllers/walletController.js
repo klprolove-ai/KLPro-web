@@ -5,6 +5,7 @@ const Refund = require('../models/Refund');
 const Professional = require('../models/Professional');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
+const AdminWallet = require('../models/AdminWallet');
 
 // ============ PROFESSIONAL WALLET OPERATIONS ============
 
@@ -39,6 +40,18 @@ exports.getWalletDetails = async (req, res) => {
     // Get bank details
     const bankDetails = await BankDetails.findOne({ professionalId: professional._id });
 
+    const normalizedPaymentMethods = Array.isArray(bankDetails?.paymentMethods)
+      ? bankDetails.paymentMethods
+          .map((method) => (typeof method === 'string' ? method : method?.methodType))
+          .map((m) => {
+            if (!m) return null;
+            // normalize legacy 'bank' to 'bank_transfer' for frontend/backend compatibility
+            if (m === 'bank') return 'bank_transfer';
+            return m;
+          })
+          .filter(Boolean)
+      : [];
+
     res.status(200).json({
       success: true,
       data: {
@@ -58,6 +71,7 @@ exports.getWalletDetails = async (req, res) => {
           upiId: bankDetails.upiId,
           verificationStatus: bankDetails.verificationStatus,
           isActive: bankDetails.isActive,
+          paymentMethods: normalizedPaymentMethods,
         } : null,
         recentTransactions: transactions,
       },
@@ -163,7 +177,29 @@ exports.addBankDetails = async (req, res) => {
       branchName,
       upiId,
       bankAccountProofUrl,
+      paymentMethods = [],
     } = req.body;
+
+    const normalizedPaymentMethods = Array.isArray(paymentMethods)
+      ? paymentMethods
+          .map((method) => {
+            if (!method) return null;
+            if (typeof method === 'string') {
+              // normalize frontend 'bank_transfer' to backend enum 'bank'
+              const mt = method === 'bank_transfer' ? 'bank' : method;
+              return { methodType: mt, isActive: true, details: '' };
+            }
+
+            const mt = method.methodType || method.value || method.name || '';
+            const normalizedMt = mt === 'bank_transfer' ? 'bank' : mt;
+            return {
+              methodType: normalizedMt,
+              isActive: method.isActive !== false,
+              details: method.details || '',
+            };
+          })
+          .filter((method) => method && method.methodType)
+      : [];
 
     // Validate required fields
     if (!accountHolderName || !accountNumber || !ifscCode || !bankName) {
@@ -187,6 +223,9 @@ exports.addBankDetails = async (req, res) => {
       bankDetails.branchName = branchName;
       bankDetails.upiId = upiId || bankDetails.upiId;
       bankDetails.bankAccountProofUrl = bankAccountProofUrl || bankDetails.bankAccountProofUrl;
+      if (normalizedPaymentMethods.length > 0) {
+        bankDetails.paymentMethods = normalizedPaymentMethods;
+      }
       bankDetails.verificationStatus = 'pending'; // Reset to pending for re-verification
     } else {
       // Create new
@@ -200,6 +239,7 @@ exports.addBankDetails = async (req, res) => {
         branchName,
         upiId,
         bankAccountProofUrl,
+        paymentMethods: normalizedPaymentMethods,
       });
     }
 
@@ -228,9 +268,19 @@ exports.getBankDetails = async (req, res) => {
 
     const bankDetails = await BankDetails.findOne({ professionalId: professional._id });
 
+    const normalizedPaymentMethods = Array.isArray(bankDetails?.paymentMethods)
+      ? bankDetails.paymentMethods
+          .map((method) => (typeof method === 'string' ? method : method?.methodType))
+          .map((m) => (m === 'bank' ? 'bank_transfer' : m))
+          .filter(Boolean)
+      : [];
+
     res.status(200).json({
       success: true,
-      data: bankDetails || null,
+      data: bankDetails ? {
+        ...bankDetails.toObject(),
+        paymentMethods: normalizedPaymentMethods,
+      } : null,
     });
   } catch (error) {
     console.error('Error getting bank details:', error);
@@ -244,14 +294,20 @@ exports.initiateWithdrawal = async (req, res) => {
     const userId = req.user._id;
     const { amount, withdrawalMethod, bankDetailsId } = req.body;
 
-    if (!amount || amount <= 0) {
+    // Validate and convert amount to number
+    const parsedAmount = parseFloat(amount);
+    if (!parsedAmount || parsedAmount <= 0 || isNaN(parsedAmount)) {
       return res.status(400).json({ message: 'Invalid withdrawal amount' });
     }
 
+    if (!withdrawalMethod) {
+      return res.status(400).json({ message: 'Withdrawal method is required' });
+    }
+
     const minAmount = parseInt(process.env.WITHDRAWAL_MINIMUM_AMOUNT) || 100;
-    if (amount < minAmount) {
+    if (parsedAmount < minAmount) {
       return res.status(400).json({ 
-        message: `Minimum withdrawal amount is ${minAmount}` 
+        message: `Minimum withdrawal amount is ₹${minAmount}` 
       });
     }
 
@@ -265,65 +321,113 @@ exports.initiateWithdrawal = async (req, res) => {
       return res.status(404).json({ message: 'Wallet not found' });
     }
 
-    if (wallet.currentBalance < amount) {
+    const currentBalance = wallet.currentBalance || 0;
+    if (currentBalance < parsedAmount) {
       return res.status(400).json({ 
         message: 'Insufficient balance for withdrawal',
-        availableBalance: wallet.currentBalance,
-        requestedAmount: amount,
+        availableBalance: currentBalance,
+        requestedAmount: parsedAmount,
       });
     }
 
-    // Get bank details
+    // Get bank / UPI details when required
     let bankDetails = null;
-    if (withdrawalMethod === 'bank_transfer' || withdrawalMethod === 'net_banking') {
-      bankDetails = await BankDetails.findById(bankDetailsId);
-      if (!bankDetails || bankDetails.verificationStatus !== 'verified') {
+    if (['bank_transfer', 'net_banking', 'upi'].includes(withdrawalMethod)) {
+      try {
+        // Allow bankDetailsId or fall back to professional's saved bank details
+        if (bankDetailsId) {
+          bankDetails = await BankDetails.findById(bankDetailsId);
+        } else {
+          bankDetails = await BankDetails.findOne({ professionalId: professional._id });
+        }
+
+        if (!bankDetails || bankDetails.verificationStatus !== 'verified') {
+          return res.status(400).json({ 
+            message: 'Bank/UPI details not verified. Please verify your account first.' 
+          });
+        }
+
+        // For UPI withdrawals ensure upiId exists
+        if (withdrawalMethod === 'upi' && !bankDetails.upiId) {
+          return res.status(400).json({ message: 'No UPI ID found. Please add your UPI ID in bank details.' });
+        }
+      } catch (bankErr) {
+        console.error('Error fetching bank details:', bankErr);
         return res.status(400).json({ 
-          message: 'Bank details not verified. Please verify your bank account first.' 
+          message: 'Error verifying bank details. Please try again.' 
         });
       }
     }
 
-    // Create withdrawal transaction
+    // Create withdrawal transaction with proper data types
+    const balanceBefore = currentBalance;
+    const balanceAfter = currentBalance - parsedAmount;
+
     const transaction = new Transaction({
       walletId: wallet._id,
       professionalId: professional._id,
       userId,
       type: 'withdrawal_initiated',
-      amount,
-      status: 'processing',
-      description: `Withdrawal of ${amount} via ${withdrawalMethod}`,
+      amount: parsedAmount,
+      status: 'pending', // Changed to 'pending' for admin approval
+      description: `Withdrawal of ₹${parsedAmount} via ${withdrawalMethod}`,
       referenceType: 'withdrawal',
-      paymentMethod: withdrawalMethod,
-      balanceBefore: wallet.currentBalance,
-      balanceAfter: wallet.currentBalance - amount,
+      paymentMethod: 'wallet_credit', // Funds coming from wallet
+      balanceBefore,
+      balanceAfter,
       withdrawalDetails: {
         method: withdrawalMethod,
         bankDetailsId: bankDetailsId || null,
       },
     });
 
+    // Validate transaction before saving
+    const validationErr = transaction.validateSync();
+    if (validationErr) {
+      console.error('Transaction validation error:', validationErr);
+      return res.status(400).json({ 
+        message: 'Invalid withdrawal data', 
+        error: validationErr.message 
+      });
+    }
+
     await transaction.save();
 
     // Deduct from wallet immediately
-    wallet.currentBalance -= amount;
+    wallet.currentBalance = balanceAfter;
+    wallet.totalWithdrawn = (wallet.totalWithdrawn || 0) + parsedAmount;
     wallet.lastTransaction = transaction._id;
+    
+    const saveErr = wallet.validateSync();
+    if (saveErr) {
+      console.error('Wallet validation error:', saveErr);
+      return res.status(400).json({ 
+        message: 'Error updating wallet', 
+        error: saveErr.message 
+      });
+    }
+    
     await wallet.save();
 
     res.status(200).json({
       success: true,
-      message: 'Withdrawal initiated successfully',
+      message: 'Withdrawal request submitted and pending admin approval',
       data: {
         transactionId: transaction._id,
-        amount,
+        amount: parsedAmount,
         method: withdrawalMethod,
-        status: 'processing',
-        estimatedTime: '2-3 business days',
+        status: 'pending',
+        estimatedTime: 'Pending admin review',
       },
     });
   } catch (error) {
     console.error('Error initiating withdrawal:', error);
-    res.status(500).json({ message: 'Error initiating withdrawal', error: error.message });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Error initiating withdrawal', 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -456,6 +560,151 @@ exports.getUserRefunds = async (req, res) => {
   } catch (error) {
     console.error('Error getting user refunds:', error);
     res.status(500).json({ message: 'Error fetching refunds', error: error.message });
+  }
+};
+
+// ============ WALLET FUND MANAGEMENT ============
+
+// Professional adds funds to wallet
+exports.addFundsToWallet = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { amount, paymentMethod, transactionReference } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid amount' });
+    }
+
+    const professional = await Professional.findOne({ userId });
+    if (!professional) {
+      return res.status(404).json({ message: 'Professional profile not found' });
+    }
+
+    let wallet = await ProfessionalWallet.findOne({ professionalId: professional._id });
+    if (!wallet) {
+      wallet = new ProfessionalWallet({
+        professionalId: professional._id,
+        userId,
+      });
+    }
+
+    const balanceBefore = wallet.currentBalance;
+    wallet.currentBalance += amount;
+    wallet.totalEarnings += amount;
+    await wallet.save();
+
+    // Create transaction record
+    const transaction = new Transaction({
+      walletId: wallet._id,
+      professionalId: professional._id,
+      userId,
+      type: 'manual_credit',
+      amount,
+      status: 'completed',
+      description: `Wallet top-up of ${amount} via ${paymentMethod}`,
+      referenceType: 'manual',
+      paymentMethod: paymentMethod === 'upi' ? 'upi' : paymentMethod === 'net_banking' ? 'net_banking' : 'cash',
+      balanceBefore,
+      balanceAfter: wallet.currentBalance,
+      completedAt: new Date(),
+    });
+
+    await transaction.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Funds added to wallet successfully',
+      data: {
+        transactionId: transaction._id,
+        amount,
+        newBalance: wallet.currentBalance,
+        balanceBefore,
+      },
+    });
+  } catch (error) {
+    console.error('Error adding funds to wallet:', error);
+    res.status(500).json({ message: 'Error adding funds', error: error.message });
+  }
+};
+
+// Admin deducts commission from professional wallet
+exports.deductCommissionFromWallet = async (req, res) => {
+  try {
+    const { professionalId, amount, reason, referenceId } = req.body;
+
+    if (!professionalId || !amount || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid professional ID or amount' });
+    }
+
+    const professional = await Professional.findById(professionalId);
+    if (!professional) {
+      return res.status(404).json({ message: 'Professional not found' });
+    }
+
+    let wallet = await ProfessionalWallet.findOne({ professionalId });
+    if (!wallet) {
+      wallet = new ProfessionalWallet({
+        professionalId,
+        userId: professional.userId,
+      });
+      await wallet.save();
+    }
+
+    if (wallet.currentBalance < amount) {
+      return res.status(400).json({
+        message: 'Insufficient wallet balance for deduction',
+        availableBalance: wallet.currentBalance,
+        requestedAmount: amount,
+      });
+    }
+
+    const balanceBefore = wallet.currentBalance;
+    wallet.currentBalance -= amount;
+    wallet.totalCommissionPaid += amount;
+    await wallet.save();
+
+    // Create transaction record for professional
+    const transaction = new Transaction({
+      walletId: wallet._id,
+      professionalId,
+      userId: professional.userId,
+      type: 'commission_deducted',
+      amount,
+      status: 'completed',
+      description: reason || 'Commission deduction by admin',
+      referenceType: 'admin_deduction',
+      referenceId: referenceId || null,
+      balanceBefore,
+      balanceAfter: wallet.currentBalance,
+      completedAt: new Date(),
+    });
+
+    await transaction.save();
+
+    // Also update admin wallet to credit the amount
+    let adminWallet = await AdminWallet.findOne();
+    if (!adminWallet) {
+      adminWallet = new AdminWallet();
+    }
+    adminWallet.totalBalance += amount;
+    adminWallet.totalCommissionReceived += amount;
+    await adminWallet.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Commission deducted successfully',
+      data: {
+        transactionId: transaction._id,
+        amount,
+        newBalance: wallet.currentBalance,
+        balanceBefore,
+        reason,
+        professionalName: professional.name || 'Professional',
+      },
+    });
+  } catch (error) {
+    console.error('Error deducting commission:', error);
+    res.status(500).json({ message: 'Error deducting commission', error: error.message });
   }
 };
 

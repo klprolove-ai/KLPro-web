@@ -20,4 +20,15 @@ router.post('/reactivate-wallet', auth, requireRole('admin'), adminWalletControl
 router.get('/transaction-report', auth, requireRole('admin'), adminWalletController.getTransactionReport);
 router.get('/payment-analytics', auth, requireRole('admin'), adminWalletController.getPaymentAnalytics);
 
+// Bank details verification
+router.get('/bank-details/pending', auth, requireRole('admin'), adminWalletController.getPendingBankDetails);
+router.post('/bank-details/verify', auth, requireRole('admin'), adminWalletController.verifyBankDetails);
+
+// Withdrawal management
+router.get('/withdrawals/pending', auth, requireRole('admin'), adminWalletController.getPendingWithdrawals);
+router.get('/withdrawals/summary', auth, requireRole('admin'), adminWalletController.getWithdrawalSummary);
+router.post('/withdrawals/:withdrawalId/approve', auth, requireRole('admin'), adminWalletController.approveWithdrawal);
+router.post('/withdrawals/:withdrawalId/reject', auth, requireRole('admin'), adminWalletController.rejectWithdrawal);
+router.post('/withdrawals/:withdrawalId/complete', auth, requireRole('admin'), adminWalletController.completeWithdrawal);
+
 module.exports = router;

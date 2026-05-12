@@ -19,6 +19,14 @@ const WithdrawalForm = () => {
   const MIN_WITHDRAWAL = 100;
   const PROCESSING_TIME = '2-3 business days';
 
+  const getAvailablePaymentMethods = () => {
+    if (!Array.isArray(bankDetails?.paymentMethods)) return [];
+
+    return bankDetails.paymentMethods
+      .map((method) => (typeof method === 'string' ? method : method?.methodType))
+      .filter(Boolean);
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -38,7 +46,7 @@ const WithdrawalForm = () => {
       ]);
 
       setWallet(walletRes.data);
-      setBankDetails(bankRes.data);
+      setBankDetails(bankRes.data?.data || null);
       setError(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load wallet data');
@@ -101,10 +109,11 @@ const WithdrawalForm = () => {
       setSubmitting(true);
       const token = localStorage.getItem('token');
       
-      await axios.post('/api/wallet/initiate-withdrawal', 
+      await axios.post(`${API_BASE_URL}/wallet/initiate-withdrawal`, 
         {
           amount: parseFloat(formData.amount),
-          method: formData.method
+          withdrawalMethod: formData.method,
+          bankDetailsId: bankDetails?._id
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -221,10 +230,10 @@ const WithdrawalForm = () => {
             disabled={submitting || showConfirm}
           >
             <option value="bank_transfer">Bank Transfer</option>
-            {bankDetails?.paymentMethods?.includes('upi') && (
+            {getAvailablePaymentMethods().includes('upi') && (
               <option value="upi">UPI</option>
             )}
-            {bankDetails?.paymentMethods?.includes('net_banking') && (
+            {getAvailablePaymentMethods().includes('net_banking') && (
               <option value="net_banking">Net Banking</option>
             )}
           </select>
@@ -233,6 +242,9 @@ const WithdrawalForm = () => {
             {formData.method === 'upi' && 'Transfer to UPI: ' + bankDetails?.upiId}
             {formData.method === 'net_banking' && 'Through net banking'}
           </small>
+          {getAvailablePaymentMethods().length === 0 && (
+            <small className="amount-info">Only bank transfer is available until UPI or net banking is enabled in your bank details.</small>
+          )}
         </div>
 
         {/* Form Actions */}

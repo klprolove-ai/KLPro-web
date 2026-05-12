@@ -122,8 +122,9 @@ exports.createOrderForBooking = async (req, res) => {
         }
         
         // Create Razorpay order
+        const bookingAmountInPaise = Math.round(bookingAmount * 100);
         const razorpayOrder = await rzp.orders.create({
-          amount: bookingAmount * 100, // Razorpay expects amount in paise
+          amount: bookingAmountInPaise, // Razorpay expects amount in paise
           currency: 'INR',
           receipt: buildRazorpayReceipt('book', bookingId),
           notes: {
@@ -187,14 +188,29 @@ exports.createOrderForProduct = async (req, res) => {
       return res.status(400).json({ message: 'Valid amount is required' });
     }
 
+    if (!mongoose.isValidObjectId(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+
+    const productOrder = await ProductOrder.findById(orderId).select('customerId orderStatus paymentStatus total');
+    if (!productOrder) {
+      return res.status(404).json({ message: 'Product order not found' });
+    }
+
+    if (String(productOrder.customerId) !== String(userId)) {
+      return res.status(403).json({ message: 'Unauthorized to pay for this order' });
+    }
+
+    if (productOrder.paymentStatus === 'completed') {
+      return res.status(400).json({ message: 'Payment is already completed for this order' });
+    }
+
     // This would reference your ProductOrder model
     // For now, we'll create a generic payment structure
     const paymentAmount = parseFloat(amount);
     console.log('[createOrderForProduct] Parsed amount:', paymentAmount);
-    
-    const referenceId = mongoose.Types.ObjectId.isValid(orderId)
-      ? new mongoose.Types.ObjectId(orderId)
-      : new mongoose.Types.ObjectId();
+
+    const referenceId = new mongoose.Types.ObjectId(orderId);
 
     const payment = new Payment({
       userId,
@@ -222,9 +238,10 @@ exports.createOrderForProduct = async (req, res) => {
           });
         }
         
-        console.log('[createOrderForProduct] Creating Razorpay order with amount:', paymentAmount * 100);
+        const paymentAmountInPaise = Math.round(paymentAmount * 100);
+        console.log('[createOrderForProduct] Creating Razorpay order with amount:', paymentAmountInPaise);
         const razorpayOrder = await rzp.orders.create({
-          amount: paymentAmount * 100,
+          amount: paymentAmountInPaise,
           currency: 'INR',
           receipt: buildRazorpayReceipt('prod', orderId),
           notes: {
@@ -318,22 +335,17 @@ exports.verifyPayment = async (req, res) => {
       return res.status(404).json({ message: 'Payment record not found' });
     }
 
-    // Updatrzp = getRazorpayInstance();
-      if (rzp && resolvedPaymentId) {
-        const paymentDetails = await rzp.payments.fetch(resolvedPaymentId);
-        payment.gatewayResponse = paymentDetails;
-      }Id;
+    // Update payment record with Razorpay details
+    const rzp = getRazorpayInstance();
+    if (rzp && resolvedPaymentId) {
+      const paymentDetails = await rzp.payments.fetch(resolvedPaymentId);
+      payment.gatewayResponse = paymentDetails;
+    }
+
+    payment.razorpayPaymentId = resolvedPaymentId;
     payment.razorpaySignature = resolvedSignature;
     payment.status = 'completed';
     payment.completedAt = new Date();
-
-    // Fetch payment details from Razorpay
-    try {
-      const paymentDetails = await razorpay.payments.fetch(resolvedPaymentId);
-      payment.gatewayResponse = paymentDetails;
-    } catch (error) {
-      console.error('Error fetching payment details:', error);
-    }
 
     await payment.save();
 
@@ -478,6 +490,7 @@ async function processProductOrderPayment(payment) {
       productOrder.razorpayOrderId = payment.razorpayOrderId;
       productOrder.razorpayPaymentId = payment.razorpayPaymentId;
       productOrder.razorpaySignature = payment.razorpaySignature;
+      // Change status from 'awaiting_payment' to 'processing' (confirmed and paid)
       productOrder.orderStatus = 'processing';
       await productOrder.save();
     }
@@ -652,4 +665,209 @@ exports.getPaymentHistory = async (req, res) => {
   }
 };
 
+// ============ WALLET TOP-UP PAYMENTS ============
+
+// Create Razorpay order for wallet top-up
+exports.createTopupOrder = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { amount } = req.body;
+
+    if (!amount || parseFloat(amount) <= 0) {
+      return res.status(400).json({ message: 'Invalid top-up amount' });
+    }
+
+    const paymentAmount = parseFloat(amount);
+    if (paymentAmount < 100 || paymentAmount > 1000000) {
+      return res.status(400).json({ 
+        message: 'Amount must be between ₹100 and ₹10,00,000' 
+      });
+    }
+
+    const rzp = getRazorpayInstance();
+    if (!rzp) {
+      return res.status(500).json({ message: 'Payment service unavailable' });
+    }
+
+    const options = {
+      amount: Math.round(paymentAmount * 100), // Convert to paise
+      currency: 'INR',
+      receipt: buildRazorpayReceipt('TOPUP', userId),
+    };
+
+    const order = await rzp.orders.create(options);
+
+    // Create Payment record with 'initiated' status
+    const payment = new Payment({
+      userId,
+      amount: paymentAmount,
+      paymentMethod: 'razorpay',
+      referenceType: 'wallet_topup',
+      referenceId: new mongoose.Types.ObjectId(),
+      status: 'initiated',
+      razorpayOrderId: order.id,
+    });
+
+    await payment.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment order created',
+      data: {
+        orderId: order.id,
+        key: process.env.RAZORPAY_KEY_ID,
+        amount: paymentAmount,
+        paymentId: payment._id,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating top-up order:', error);
+    res.status(500).json({ message: 'Error creating payment order', error: error.message });
+  }
+};
+
+// Verify and complete wallet top-up payment
+exports.verifyTopupPayment = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { orderId, paymentId, signature } = req.body;
+
+    if (!orderId || !paymentId || !signature) {
+      return res.status(400).json({ message: 'Missing payment details' });
+    }
+
+    // Verify Razorpay signature
+    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+    const body = orderId + '|' + paymentId;
+    const expectedSignature = crypto
+      .createHmac('sha256', razorpayKeySecret)
+      .update(body)
+      .digest('hex');
+
+    if (expectedSignature !== signature) {
+      return res.status(400).json({ message: 'Invalid payment signature' });
+    }
+
+    // Get Razorpay payment details
+    const rzp = getRazorpayInstance();
+    if (!rzp) {
+      return res.status(500).json({ message: 'Payment service unavailable' });
+    }
+
+    const payment = await rzp.payments.fetch(paymentId);
+
+    // Find and update Payment record
+    const paymentRecord = await Payment.findOne({
+      razorpayOrderId: orderId,
+      userId,
+    });
+
+    if (!paymentRecord) {
+      return res.status(404).json({ message: 'Payment record not found' });
+    }
+
+    if (payment.status !== 'captured') {
+      return res.status(400).json({ message: 'Payment not captured' });
+    }
+
+    // Update payment record to completed
+    paymentRecord.status = 'completed';
+    paymentRecord.razorpayPaymentId = paymentId;
+    paymentRecord.razorpaySignature = signature;
+    paymentRecord.completedAt = new Date();
+    await paymentRecord.save();
+
+    // Add funds to professional wallet
+    const professional = await Professional.findOne({ userId });
+    let wallet = await ProfessionalWallet.findOne({ professionalId: professional._id });
+
+    if (!wallet) {
+      wallet = new ProfessionalWallet({
+        professionalId: professional._id,
+        userId,
+      });
+    }
+
+    const amount = paymentRecord.amount;
+    const balanceBefore = wallet.currentBalance;
+    wallet.currentBalance += amount;
+    wallet.totalEarnings += amount;
+    await wallet.save();
+
+    // Create transaction record
+    const transaction = new Transaction({
+      walletId: wallet._id,
+      professionalId: professional._id,
+      userId,
+      type: 'manual_credit',
+      amount,
+      status: 'completed',
+      description: `Wallet top-up of ₹${amount} via Razorpay`,
+      referenceType: 'manual',
+      referenceId: paymentRecord._id,
+      paymentMethod: 'razorpay',
+      balanceBefore,
+      balanceAfter: wallet.currentBalance,
+      completedAt: new Date(),
+    });
+
+    await transaction.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Wallet top-up completed successfully',
+      data: {
+        amount,
+        newBalance: wallet.currentBalance,
+        transactionId: transaction._id,
+        paymentId: paymentRecord._id,
+      },
+    });
+  } catch (error) {
+    console.error('Error verifying top-up payment:', error);
+    res.status(500).json({ message: 'Error processing payment', error: error.message });
+  }
+};
+
 module.exports = exports;
+
+// Perform a refund for a given payment object
+exports.performRefund = async (payment, userId, referenceId) => {
+  try {
+    if (!payment || !payment.razorpayPaymentId) {
+      throw new Error('Invalid payment or missing razorpayPaymentId');
+    }
+
+    const rzp = getRazorpayInstance();
+    if (!rzp) throw new Error('Razorpay not configured');
+
+    const amountPaise = Math.round(payment.amount * 100);
+    const refund = await rzp.payments.refund(payment.razorpayPaymentId, { amount: amountPaise });
+
+    // Create Refund record
+    const RefundModel = require('../models/Refund');
+    const refundDoc = await RefundModel.create({
+      paymentId: payment._id,
+      razorpayRefundId: refund.id,
+      userId,
+      amount: payment.amount,
+      reason: 'user_request',
+      description: `Refund for reference ${referenceId}`,
+      status: refund && refund.status ? refund.status : 'processing',
+      referenceType: payment.referenceType || 'product_order',
+      referenceId,
+      gatewayResponse: refund,
+      completedAt: refund && (refund.status === 'processed' || refund.status === 'processed') ? new Date() : null,
+    });
+
+    // Update payment status
+    payment.status = 'refunded';
+    payment.razorpayRefundId = refund.id;
+    await payment.save();
+
+    return { refund: refundDoc, raw: refund };
+  } catch (error) {
+    console.error('performRefund error:', error);
+    throw error;
+  }
+};

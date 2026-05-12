@@ -1,0 +1,5 @@
+.page-container { padding: 24px; max-width: 900px; margin: 0 auto; }
+.order-card { background: #fff; border: 1px solid #eee; padding: 16px; border-radius: 8px; }
+.order-row { margin-bottom: 8px; }
+.danger-btn { background: #dc3545; color: #fff; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
+.danger-btn:hover { opacity: 0.95; }
