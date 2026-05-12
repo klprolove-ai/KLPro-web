@@ -25,7 +25,24 @@ const WorkOrdersPage = () => {
   }, [navigate]);
 
   useEffect(() => {
-    applyFilters();
+    // inline filter logic to avoid missing dependency lint warnings
+    let filtered = workOrders;
+
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(order => order.status === filterStatus);
+    }
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.userName?.toLowerCase().includes(search) ||
+        order.userEmail?.toLowerCase().includes(search) ||
+        order.serviceName?.toLowerCase().includes(search) ||
+        order._id?.includes(search)
+      );
+    }
+
+    setFilteredOrders(filtered);
   }, [workOrders, filterStatus, searchTerm]);
 
   const fetchWorkOrders = async () => {
@@ -51,27 +68,7 @@ const WorkOrdersPage = () => {
     }
   };
 
-  const applyFilters = () => {
-    let filtered = workOrders;
-
-    // Filter by status
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(order => order.status === filterStatus);
-    }
-
-    // Filter by search term
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(order => 
-        order.userName?.toLowerCase().includes(search) ||
-        order.userEmail?.toLowerCase().includes(search) ||
-        order.serviceName?.toLowerCase().includes(search) ||
-        order._id?.includes(search)
-      );
-    }
-
-    setFilteredOrders(filtered);
-  };
+  
 
   const getStatusColor = (status) => {
     const colors = {

@@ -28,7 +28,23 @@ const ProfessionalBookingsPage = () => {
   }, [navigate]);
 
   useEffect(() => {
-    applyFilters();
+    // inline filter logic to avoid missing dependency lint warnings
+    let filtered = bookings;
+
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(booking => booking.status === filterStatus);
+    }
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(booking => 
+        booking.professionalName?.toLowerCase().includes(search) ||
+        booking.serviceName?.toLowerCase().includes(search) ||
+        booking._id?.includes(search)
+      );
+    }
+
+    setFilteredBookings(filtered);
   }, [bookings, filterStatus, searchTerm]);
 
   const fetchBookings = async () => {
@@ -54,26 +70,7 @@ const ProfessionalBookingsPage = () => {
     }
   };
 
-  const applyFilters = () => {
-    let filtered = bookings;
-
-    // Filter by status
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(booking => booking.status === filterStatus);
-    }
-
-    // Filter by search term
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(booking => 
-        booking.professionalName?.toLowerCase().includes(search) ||
-        booking.serviceName?.toLowerCase().includes(search) ||
-        booking._id?.includes(search)
-      );
-    }
-
-    setFilteredBookings(filtered);
-  };
+  
 
   const getStatusColor = (status) => {
     const colors = {

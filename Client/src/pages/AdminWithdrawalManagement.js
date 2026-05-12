@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import API_BASE_URL from '../config/apiConfig';
 import './AdminWithdrawalManagement.css';
 
@@ -19,7 +19,7 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
   const token = localStorage.getItem('adminToken');
 
   // Fetch withdrawals
-  const fetchWithdrawals = async (status = 'pending', pageNum = 1) => {
+  const fetchWithdrawals = useCallback(async (status = 'pending', pageNum = 1) => {
     try {
       setLoading(true);
       const response = await fetch(
@@ -37,10 +37,10 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   // Fetch summary
-  const fetchSummary = async () => {
+  const fetchSummary = useCallback(async () => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/admin-wallet/withdrawals/summary`,
@@ -55,10 +55,10 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
     } catch (err) {
       console.error('Error fetching summary:', err);
     }
-  };
+  }, [token]);
 
   // Fetch bank details for a withdrawal
-  const fetchBankDetails = async (bankDetailsId, professionalId) => {
+  const fetchBankDetails = useCallback(async (bankDetailsId, professionalId) => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/wallet/bank-details/${bankDetailsId || professionalId}`,
@@ -73,7 +73,7 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
     } catch (err) {
       console.error('Error fetching bank details:', err);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     if (!token) {
@@ -83,7 +83,7 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
 
     fetchWithdrawals(currentTab, page);
     fetchSummary();
-  }, [currentTab, page, token]);
+  }, [currentTab, page, token, fetchWithdrawals, fetchSummary]);
 
   // Approve withdrawal
   const handleApprove = async () => {
