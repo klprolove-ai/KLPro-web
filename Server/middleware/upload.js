@@ -6,25 +6,23 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   fileFilter: (req, file, cb) => {
-    // Check file type
     const mimeType = String(file.mimetype || '').toLowerCase();
     const fileName = String(file.originalname || '').toLowerCase();
-    const allowedMimes = [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/heic',
-      'image/heif',
-    ];
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
+
+    const imageMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'];
+    const documentMimes = [...imageMimes, 'application/pdf'];
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.svg'];
+    const documentExtensions = [...imageExtensions, '.pdf'];
+
+    const fieldName = String(file.fieldname || '');
+    const allowedMimes = fieldName === 'profileImage' ? imageMimes : documentMimes;
+    const allowedExtensions = fieldName === 'profileImage' ? imageExtensions : documentExtensions;
     const extensionMatch = allowedExtensions.some((ext) => fileName.endsWith(ext));
 
     if (allowedMimes.includes(mimeType) || (mimeType === 'application/octet-stream' && extensionMatch)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Allowed: JPEG, PNG, GIF, WebP, HEIC, HEIF.'));
+      cb(new Error('Invalid file type. Allowed formats are JPEG, JPG, PNG, SVG, and PDF for PAN/Aadhaar uploads. Professional photo supports JPEG, JPG, PNG, SVG.'));
     }
   },
   limits: {

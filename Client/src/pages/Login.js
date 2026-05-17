@@ -192,6 +192,18 @@ function Login() {
     }));
   };
 
+  const isValidFileType = (file, allowedTypes) => {
+    if (!file) return false;
+    const fileName = String(file.name || '').toLowerCase();
+    const fileType = String(file.type || '').toLowerCase();
+    return allowedTypes.some((allowedType) => {
+      if (allowedType.startsWith('.')) {
+        return fileName.endsWith(allowedType);
+      }
+      return fileType === allowedType;
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -204,25 +216,78 @@ function Login() {
     try {
       // Validation for SignUp (not login)
       if (!isLogin) {
-        // Password match
-        if (formData.password !== formData.confirmPassword) {
-          setError('Password and confirm password must match');
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const phoneRegex = /^(\+91[-\s]?)?[6-9]\d{9}$/;
+        const requiredCustomerFields = [formData.name, formData.phone, formData.city, formData.userType, formData.email, formData.password, formData.confirmPassword];
+
+        if (requiredCustomerFields.some((value) => !String(value || '').trim())) {
+          setError('Customer registration requires Full Name, Phone, City, Account Type, Email, Password, and Confirm Password.');
           setLoading(false);
           return;
         }
-        // Email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
         if (!emailRegex.test(formData.email)) {
           setError('Please enter a valid email address.');
           setLoading(false);
           return;
         }
-        // Phone format (10 digits, allow +91, spaces, dashes)
-        const phoneRegex = /^(\+91[-\s]?)?[6-9]\d{9}$/;
+
         if (!phoneRegex.test(formData.phone)) {
           setError('Please enter a valid 10-digit phone number.');
           setLoading(false);
           return;
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+          setError('Password and Confirm Password must match.');
+          setLoading(false);
+          return;
+        }
+
+        if (formData.userType === 'professional') {
+          const selectedCategories = Array.isArray(formData.professionalCategory)
+            ? formData.professionalCategory
+            : formData.professionalCategory ? [formData.professionalCategory] : [];
+          const selectedSubCategories = Array.isArray(formData.professionalSubCategory)
+            ? formData.professionalSubCategory
+            : formData.professionalSubCategory ? [formData.professionalSubCategory] : [];
+
+          const requiredProfessionalFields = [
+            formData.profileImage,
+            formData.panCardNumber,
+            formData.aadhaarCardNumber,
+            formData.panCardImage,
+            formData.aadhaarCardImage,
+            formData.experience,
+            formData.bio,
+          ];
+
+          if (!selectedCategories.length || !selectedSubCategories.length || requiredProfessionalFields.some((value) => !String(value || '').trim())) {
+            setError('Professional registration requires all fields: category, subcategory, photo, PAN/Aadhaar details, experience, short bio, email, password, and confirm password.');
+            setLoading(false);
+            return;
+          }
+
+          const profileImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', '.jpeg', '.jpg', '.png', '.svg'];
+          const panAadhaarTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'application/pdf', '.jpeg', '.jpg', '.png', '.svg', '.pdf'];
+
+          if (!isValidFileType(formData.profileImage, profileImageTypes)) {
+            setError('Professional Photo must be JPEG, JPG, PNG or SVG.');
+            setLoading(false);
+            return;
+          }
+
+          if (!isValidFileType(formData.panCardImage, panAadhaarTypes) || !isValidFileType(formData.aadhaarCardImage, panAadhaarTypes)) {
+            setError('PAN and Aadhaar images must be JPEG, JPG, PNG, SVG or PDF.');
+            setLoading(false);
+            return;
+          }
+
+          if (Number(formData.experience) <= 0) {
+            setError('Experience must be a positive number.');
+            setLoading(false);
+            return;
+          }
         }
       }
 
@@ -563,8 +628,9 @@ function Login() {
                       type="file"
                       id="profileImage"
                       name="profileImage"
-                      accept="image/*"
+                      accept=".jpeg,.jpg,.png,.svg,image/jpeg,image/jpg,image/png,image/svg+xml"
                       onChange={handleFileChange}
+                      required
                       disabled={loading}
                     />
                   </div>
@@ -603,7 +669,7 @@ function Login() {
                       type="file"
                       id="panCardImage"
                       name="panCardImage"
-                      accept="image/*"
+                      accept=".jpeg,.jpg,.png,.svg,.pdf,image/jpeg,image/jpg,image/png,image/svg+xml,application/pdf"
                       onChange={handleFileChange}
                       required
                       disabled={loading}
@@ -616,7 +682,7 @@ function Login() {
                       type="file"
                       id="aadhaarCardImage"
                       name="aadhaarCardImage"
-                      accept="image/*"
+                      accept=".jpeg,.jpg,.png,.svg,.pdf,image/jpeg,image/jpg,image/png,image/svg+xml,application/pdf"
                       onChange={handleFileChange}
                       required
                       disabled={loading}

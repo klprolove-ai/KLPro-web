@@ -160,8 +160,9 @@ function AdminServicesSection({
 
       {selectedService ? (
         <div className="service-detail-view">
-          <button 
-            className="back-btn"
+          <button
+            className="back-btn btn-catalog-back"
+            style={{ opacity: 1, visibility: 'visible', display: 'inline-flex' }}
             onClick={() => {
               setSelectedService(null);
               setEditingService(null);
@@ -293,7 +294,13 @@ function AdminServicesSection({
               </div>
               <div className="form-actions">
                 <button className="btn-save" onClick={handleUpdateService}>Save Changes</button>
-                <button className="btn-cancel" onClick={() => setEditingService(null)}>Cancel</button>
+                <button
+                  className="btn-cancel btn-catalog-cancel"
+                  style={{ opacity: 1, visibility: 'visible', display: 'inline-flex' }}
+                  onClick={() => setEditingService(null)}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           ) : (
@@ -371,16 +378,16 @@ function AdminServicesSection({
         </div>
       ) : showServiceForm ? (
         <div className="service-form-view">
-          <button 
-            className="back-btn"
-            onClick={() => {
-              setShowServiceForm(false);
-              setEditingService(null);
-            }}
-          >
-            ← Cancel
-          </button>
           <div className="service-create-form">
+            <button
+              className="back-btn btn-catalog-back"
+              onClick={() => {
+                setShowServiceForm(false);
+                setEditingService(null);
+              }}
+            >
+              ← Cancel
+            </button>
             <h3>Create New Service</h3>
             <div className="form-group">
               <label>Service Name</label>
@@ -497,10 +504,16 @@ function AdminServicesSection({
             </div>
             <div className="form-actions">
               <button className="btn-save" onClick={handleCreateService}>Create Service</button>
-              <button className="btn-cancel" onClick={() => {
-                setShowServiceForm(false);
-                setEditingService(null);
-              }}>Cancel</button>
+              <button
+                className="btn-cancel btn-catalog-cancel"
+                style={{ opacity: 1, visibility: 'visible', display: 'inline-flex' }}
+                onClick={() => {
+                  setShowServiceForm(false);
+                  setEditingService(null);
+                }}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

@@ -69,17 +69,23 @@ router.post(
     } = req.body;
 
     const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedPhone = String(phone || '').trim();
+    const normalizedCity = String(city || '').trim();
+    const normalizedUserType = String(userType || 'customer').trim();
 
-    if (!name || !normalizedEmail || !password) {
-      return res.status(400).json({ message: 'Name, email and password are required' });
+    if (!name || !normalizedEmail || !password || !normalizedPhone || !normalizedCity || !normalizedUserType) {
+      return res.status(400).json({ message: 'Name, email, password, phone, city and account type are required' });
     }
 
-    const normalizedUserType = userType || 'customer';
-
-    // Check if user exists
-    let user = await User.findOne({ email: normalizedEmail });
-    if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+    // Check if user exists by email or phone
+    let existingUser = await User.findOne({
+      $or: [{ email: normalizedEmail }, { phone: normalizedPhone }],
+    });
+    if (existingUser) {
+      if (existingUser.email === normalizedEmail) {
+        return res.status(400).json({ message: 'Email already registered' });
+      }
+      return res.status(400).json({ message: 'Phone number already registered' });
     }
 
     // Hash password
@@ -110,10 +116,17 @@ router.post(
       const professionalSubSubCategories = normalizeArrayField(professionalSubSubCategory);
       const professionalServiceTypes = normalizeArrayField(professionalServiceType);
 
-      if (!professionalCategories.length || !professionalSubCategories.length || !panCardNumber || !aadhaarCardNumber) {
+        if (!professionalCategories.length || !professionalSubCategories.length || !panCardNumber || !aadhaarCardNumber) {
         await User.findByIdAndDelete(user._id);
         return res.status(400).json({
-          message: 'Professional category, subcategory, PAN card and Aadhaar card are required',
+          message: 'Professional category, subcategory, PAN card number and Aadhaar card number are required',
+        });
+      }
+
+      if (!profileImageFile) {
+        await User.findByIdAndDelete(user._id);
+        return res.status(400).json({
+          message: 'Professional photo is required',
         });
       }
 
@@ -121,6 +134,13 @@ router.post(
         await User.findByIdAndDelete(user._id);
         return res.status(400).json({
           message: 'PAN card image and Aadhaar card image are required',
+        });
+      }
+
+      if (!experience || Number(experience) <= 0 || !bio) {
+        await User.findByIdAndDelete(user._id);
+        return res.status(400).json({
+          message: 'Experience and short bio are required for professional registration',
         });
       }
 

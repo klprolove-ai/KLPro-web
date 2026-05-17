@@ -134,10 +134,18 @@ function Services() {
 
     return Array.from(tree.entries()).map(([subCategory, subSubMap]) => ({
       subCategory,
-      subSubCategories: Array.from(subSubMap.entries()).map(([subSubCategory, serviceTypesSet]) => ({
-        subSubCategory,
-        serviceTypes: Array.from(serviceTypesSet),
-      })),
+      subSubCategories: Array.from(subSubMap.entries()).map(([subSubCategory, serviceTypesSet]) => {
+        const configuredServiceTypes = getServiceTypeOptions(category, subCategory, subSubCategory);
+        return {
+          subSubCategory,
+          serviceTypes: Array.from(
+            new Set([
+              ...Array.from(serviceTypesSet),
+              ...configuredServiceTypes,
+            ])
+          ),
+        };
+      }),
     }));
   };
 
@@ -234,6 +242,10 @@ function Services() {
 
   const getServiceTypeFilterOptions = () => {
     if (selectedSubSubCategory === 'all') {
+      if (selectedCategory !== 'all' && selectedSubCategory !== 'all') {
+        return getServiceTypeOptions(selectedCategory, selectedSubCategory, selectedSubSubCategory);
+      }
+
       return Array.from(
         new Set(
           servicesData

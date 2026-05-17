@@ -2,6 +2,16 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Professional = require('../models/Professional');
+const Booking = require('../models/Booking');
+const Payment = require('../models/Payment');
+const Transaction = require('../models/Transaction');
+const Refund = require('../models/Refund');
+const BankDetails = require('../models/BankDetails');
+const ProfessionalWallet = require('../models/ProfessionalWallet');
+const ProductOrder = require('../models/ProductOrder');
+const Review = require('../models/Review');
+const OTP = require('../models/OTP');
+const Contact = require('../models/Contact');
 const { endCallSession } = require('../services/callSessionService');
 const { emitToUser, emitToAdmins } = require('../realtime/presence');
 
@@ -232,29 +242,102 @@ const deleteUser = async (req, res) => {
       });
     }
 
-    user.isDeleted = true;
-    user.deletedAt = new Date();
-    user.deletedBy = req.admin?.email || '';
-    user.approvalStatus = 'rejected';
-    user.verificationStatus = 'rejected';
-    await user.save();
+    const userId = user._id;
+    const userEmail = String(user.email || '').trim().toLowerCase();
+    const userPhone = String(user.phone || '').trim();
 
-    if (user.userType === 'professional') {
-      const professional = await Professional.findOne({ userId: user._id });
-      if (professional) {
-        professional.isDeleted = true;
-        professional.deletedAt = new Date();
-        professional.deletedBy = req.admin?.email || '';
-        professional.approvalStatus = 'rejected';
-        professional.verificationStatus = 'rejected';
-        professional.verificationNotification = 'Account deleted by admin.';
-        await professional.save();
-      }
+    // Find all professionals linked to this user
+    const professionals = await Professional.find({ userId });
+    const professionalIds = professionals.map(p => p._id);
+
+    const bookingQuery = professionalIds.length > 0
+      ? { $or: [{ customerId: userId }, { professionalId: { $in: professionalIds } }] }
+      : { customerId: userId };
+
+    const paymentQuery = professionalIds.length > 0
+      ? { $or: [{ userId }, { professionalId: { $in: professionalIds } }] }
+      : { userId };
+
+    const refundQuery = professionalIds.length > 0
+      ? { $or: [{ userId }, { professionalId: { $in: professionalIds } }] }
+      : { userId };
+
+    const bankDetailsQuery = professionalIds.length > 0
+      ? { $or: [{ userId }, { professionalId: { $in: professionalIds } }] }
+      : { userId };
+
+    const transactionQuery = professionalIds.length > 0
+      ? { $or: [{ userId }, { professionalId: { $in: professionalIds } }] }
+      : { userId };
+
+    const professionalWalletQuery = professionalIds.length > 0
+      ? { $or: [{ userId }, { professionalId: { $in: professionalIds } }] }
+      : { userId };
+
+    const deletionTasks = [
+      // Hard delete User
+      User.findByIdAndDelete(userId),
+      
+      // Hard delete all Reviews
+      Review.deleteMany({ $or: [{ reviewer: userId }, { professional: userId }] }),
+      
+      // Hard delete all Bookings
+      Booking.deleteMany(bookingQuery),
+      
+      // Hard delete all Payments
+      Payment.deleteMany(paymentQuery),
+      
+      // Hard delete all Refunds
+      Refund.deleteMany(refundQuery),
+      
+      // Hard delete all BankDetails
+      BankDetails.deleteMany(bankDetailsQuery),
+      
+      // Hard delete all Transactions
+      Transaction.deleteMany(transactionQuery),
+      
+      // Hard delete all ProfessionalWallets
+      ProfessionalWallet.deleteMany(professionalWalletQuery),
+      
+      // Hard delete all ProductOrders
+      ProductOrder.deleteMany({ customerId: userId }),
+      
+      // Hard delete all Professionals (no soft delete - direct delete)
+      Professional.deleteMany({ userId: userId }),
+    ];
+
+    // Handle Contact deletion
+    const contactConditions = [];
+    if (userEmail) contactConditions.push({ email: userEmail });
+    if (userPhone) contactConditions.push({ phone: userPhone });
+    if (contactConditions.length > 0) {
+      deletionTasks.push(Contact.deleteMany({ $or: contactConditions }));
     }
+
+    // Handle OTP deletion
+    if (userPhone) {
+      deletionTasks.push(OTP.deleteMany({ mobile: userPhone }));
+    }
+
+    // Execute all deletions in parallel
+    const results = await Promise.all(deletionTasks);
+
+    console.log(`Successfully deleted user ${userId} and all associated data:`, {
+      userDeleted: !!results[0],
+      reviewsDeleted: results[1].deletedCount,
+      bookingsDeleted: results[2].deletedCount,
+      paymentsDeleted: results[3].deletedCount,
+      refundsDeleted: results[4].deletedCount,
+      bankDetailsDeleted: results[5].deletedCount,
+      transactionsDeleted: results[6].deletedCount,
+      professionalWalletsDeleted: results[7].deletedCount,
+      productOrdersDeleted: results[8].deletedCount,
+      professionalsDeleted: results[9].deletedCount,
+    });
 
     res.status(200).json({
       success: true,
-      message: 'User deleted successfully'
+      message: 'User and all associated data deleted successfully'
     });
   } catch (error) {
     console.error('Delete user error:', error);

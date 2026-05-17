@@ -647,6 +647,9 @@
   font-size: 0.95em;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  opacity: 1;
+  visibility: visible;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .btn-save {
@@ -1448,6 +1451,31 @@
   margin-bottom: 20px;
 }
 
+/* Place cancel/back button inside the service card */
+.service-create-form .back-btn,
+.service-create-form .btn-catalog-back,
+.service-create-form .btn-catalog-cancel,
+.service-form-view .back-btn,
+.service-form-view .btn-catalog-back,
+.service-form-view .btn-catalog-cancel,
+.service-create-form .btn-cancel,
+.service-form-view .btn-cancel {
+  margin-bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 0.9em;
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 1;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #2f3c4f 0%, #3f4b67 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -2209,6 +2237,7 @@
 .admin-sidebar {
   position: sticky;
   top: 0;
+  max-height: 100vh;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -2217,7 +2246,21 @@
   background: var(--panel-surface);
   border-right: 1px solid var(--panel-border);
   box-shadow: var(--panel-shadow);
+  overflow-y: auto;
   z-index: 4;
+}
+
+.admin-sidebar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.admin-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+  border-radius: 999px;
 }
 
 .sidebar-brand {

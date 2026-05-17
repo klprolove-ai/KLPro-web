@@ -98,6 +98,14 @@ export const SERVICE_TYPE_HIERARCHY = {
     "Hair color",
     "Massage",
   ],
+  [buildServiceTypeKey("Men's Salon & Massage", "Salon for men", "Prime")]: [
+    "Haircut & beard styling",
+    "Detan",
+    "Facial & cleanup",
+    "Manicure & pedicure",
+    "Hair color",
+    "Massage",
+  ],
   [buildServiceTypeKey("Men's Salon & Massage", "Massage for Men", "Prime")]: [
     "Pain relief",
     "Stress relief",
@@ -490,8 +498,19 @@ export const SERVICE_TYPE_HIERARCHY = {
 };
 
 export function getServiceTypeOptions(category, subCategory, subSubCategory) {
-  if (!category || !subCategory || !subSubCategory || subCategory === 'all' || subSubCategory === 'all') {
+  if (!category || !subCategory || subCategory === 'all') {
     return [];
+  }
+
+  if (!subSubCategory || subSubCategory === 'all') {
+    const prefix = buildServiceTypeKey(category, subCategory, '');
+    return Array.from(
+      new Set(
+        Object.keys(SERVICE_TYPE_HIERARCHY)
+          .filter((key) => key.startsWith(prefix))
+          .flatMap((key) => SERVICE_TYPE_HIERARCHY[key] || [])
+      )
+    );
   }
 
   return SERVICE_TYPE_HIERARCHY[buildServiceTypeKey(category, subCategory, subSubCategory)] || [];
@@ -501,7 +520,7 @@ export function getHierarchyOptions(category, subCategory, subSubCategory) {
   const normalizeToArray = (value) => {
     if (!value) return [];
     if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
-    return String(value).split(',').map((item) => item.trim()).filter(Boolean);
+    return [String(value).trim()].filter(Boolean);
   };
 
   const categoryList = normalizeToArray(category);
