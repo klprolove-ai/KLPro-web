@@ -207,6 +207,10 @@ function Home() {
     navigate(buildProfessionalsPath(params));
   };
 
+  const goToServiceDetails = (serviceId) => {
+    navigate(`/services/${serviceId}`);
+  };
+
   const scrollShell = (shellRef, trackRef, distance) => {
     if (!shellRef?.current) return;
 
@@ -347,15 +351,32 @@ function Home() {
           ) : mostBookedServices.length > 0 ? (
             <div className="services-carousel">
               {mostBookedServices.map((service) => (
-                <div key={service.id} className="service-carousel-card">
+                <div
+                  key={service.id}
+                  className="service-carousel-card"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => goToServiceDetails(service.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      goToServiceDetails(service.id);
+                    }
+                  }}
+                >
                   {service.discount && (
                     <div className="discount-badge">{service.discount}</div>
                   )}
                   <div className="service-image">
                     {service.image ? (
-                      <img src={service.image} alt={service.name} />
+                      <img
+                        src={service.image}
+                        alt={service.name}
+                        onClick={() => goToServiceDetails(service.id)}
+                        style={{ cursor: 'pointer' }}
+                      />
                     ) : (
-                      <div className="image-placeholder">📷</div>
+                      <div className="image-placeholder" onClick={() => goToServiceDetails(service.id)} style={{ cursor: 'pointer' }}>📷</div>
                     )}
                   </div>
                   <h3>{service.name}</h3>
@@ -372,13 +393,12 @@ function Home() {
                     <button
                       className="book-btn"
                       type="button"
-                      onClick={() =>
-                        goToProfessionals({
-                          service: service.name,
-                        })
-                      }
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        goToServiceDetails(service.id);
+                      }}
                     >
-                      Book
+                      View Details
                     </button>
                   </div>
                 </div>

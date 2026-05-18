@@ -1,0 +1,346 @@
+.service-details-page {
+  padding: 32px 20px 72px;
+  background: linear-gradient(180deg, #f7f5ef 0%, #ffffff 36%, #f3f0e8 100%);
+  color: #1f1f1f;
+}
+
+.service-hero {
+  max-width: 1180px;
+  margin: 0 auto 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.service-hero-copy,
+.service-hero-media,
+.service-detail-panel,
+.service-reviews-section,
+.summary-card {
+  border: 1px solid rgba(31, 31, 31, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 60px rgba(31, 31, 31, 0.08);
+}
+
+.service-hero-copy {
+  padding: 36px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.72rem;
+  color: #8b6d3d;
+  font-weight: 700;
+}
+
+.service-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 5vw, 4.5rem);
+  line-height: 0.98;
+}
+
+.service-rating-row,
+.service-price-row,
+.reviews-header,
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.service-rating-row {
+  margin: 18px 0 20px;
+  flex-wrap: wrap;
+}
+
+.service-rating-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.service-rating-stars .star,
+.review-stars .star {
+  color: #d2c6b2;
+}
+
+.service-rating-stars .star.filled,
+.review-stars .star.filled {
+  color: #d99b2b;
+}
+
+.rating-value,
+.review-count {
+  color: #6f675d;
+  font-weight: 600;
+}
+
+.service-description {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: #44413c;
+}
+
+.service-price-row {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(31, 31, 31, 0.08);
+}
+
+.price-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #7a7368;
+  font-size: 0.88rem;
+}
+
+.service-price-row strong {
+  font-size: 1.7rem;
+}
+
+.primary-action,
+.login-prompt button,
+.empty-card button,
+.loading-message {
+  border: none;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.primary-action,
+.login-prompt button,
+.empty-card button {
+  padding: 14px 22px;
+  background: #1f1f1f;
+  color: #fff;
+  cursor: pointer;
+}
+
+.service-hero-media {
+  overflow: hidden;
+  min-height: 100%;
+}
+
+.service-hero-media img,
+.service-hero-media .image-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.service-hero-media .image-placeholder {
+  display: grid;
+  place-items: center;
+  font-size: 4rem;
+  background: linear-gradient(135deg, #efe7da, #ddd1bf);
+}
+
+.service-summary-grid {
+  max-width: 1180px;
+  margin: 0 auto 28px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.summary-card {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summary-card span,
+.detail-grid span {
+  color: #756d61;
+  font-size: 0.88rem;
+}
+
+.summary-card strong,
+.detail-grid strong {
+  font-size: 1.05rem;
+}
+
+.service-detail-panel,
+.service-reviews-section {
+  max-width: 1180px;
+  margin: 0 auto 28px;
+  padding: 28px;
+}
+
+.related-services-section {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.related-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.related-back-btn {
+  border: 1px solid rgba(31, 31, 31, 0.12);
+  background: #fff;
+  color: #1f1f1f;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.related-services-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.related-service-card {
+  border: 1px solid rgba(31, 31, 31, 0.08);
+  border-radius: 20px;
+  background: #fff;
+  padding: 0;
+  text-align: left;
+  overflow: hidden;
+  box-shadow: 0 14px 36px rgba(31, 31, 31, 0.06);
+  cursor: pointer;
+}
+
+.related-service-image {
+  height: 150px;
+  overflow: hidden;
+}
+
+.related-service-image img,
+.related-service-image .image-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.related-service-image .image-placeholder {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #efe7da, #ddd1bf);
+  font-size: 2rem;
+}
+
+.related-service-copy {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.related-service-copy span {
+  color: #7a7368;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.related-service-copy strong {
+  font-size: 1rem;
+  color: #1f1f1f;
+}
+
+.related-service-copy p {
+  margin: 0;
+  color: #5e574d;
+  font-weight: 600;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.detail-grid > div {
+  padding: 18px;
+  background: #faf7f1;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reviews-summary {
+  text-align: right;
+}
+
+.reviews-summary strong {
+  display: block;
+  font-size: 1.4rem;
+}
+
+.login-prompt,
+.empty-state {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.login-prompt {
+  margin-bottom: 20px;
+  padding: 22px;
+  border-radius: 18px;
+  background: #fff9ec;
+  border: 1px solid rgba(217, 155, 43, 0.2);
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 50vh;
+}
+
+.empty-card {
+  padding: 28px;
+  border-radius: 20px;
+  background: #fff;
+  text-align: center;
+}
+
+.loading-message {
+  min-height: 40vh;
+  display: grid;
+  place-items: center;
+  color: #6f675d;
+}
+
+@media (max-width: 960px) {
+  .service-hero,
+  .service-summary-grid,
+  .detail-grid,
+  .related-services-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .service-hero-copy {
+    padding: 24px;
+  }
+
+  .reviews-header,
+  .panel-header,
+  .service-price-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .related-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

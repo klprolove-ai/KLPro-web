@@ -102,6 +102,36 @@ function Login() {
     return '';
   };
 
+  const validatePanCardNumber = (value) => {
+    const normalized = String(value || '').trim().toUpperCase();
+    const panRegex = /^[A-Z0-9]{10}$/;
+
+    if (!normalized) {
+      return 'PAN Card Number is required';
+    }
+
+    if (!panRegex.test(normalized)) {
+      return 'PAN Card Number must be exactly 10 alphanumeric characters';
+    }
+
+    return '';
+  };
+
+  const validateAadhaarCardNumber = (value) => {
+    const normalized = String(value || '').trim();
+    const aadhaarRegex = /^\d{12}$/;
+
+    if (!normalized) {
+      return 'Aadhaar Card Number is required';
+    }
+
+    if (!aadhaarRegex.test(normalized)) {
+      return 'Aadhaar Card Number must be exactly 12 digits';
+    }
+
+    return '';
+  };
+
   const toggleArrayValue = (currentValue, targetValue) => {
     const normalizedCurrent = Array.isArray(currentValue) ? currentValue : currentValue ? [currentValue] : [];
     return normalizedCurrent.includes(targetValue)
@@ -111,9 +141,26 @@ function Login() {
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
-    const normalizedValue = type === 'checkbox'
+    let normalizedValue = type === 'checkbox'
       ? toggleArrayValue(formData[name], value)
       : value;
+
+    if (name === 'panCardNumber') {
+      normalizedValue = String(value || '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 10);
+      setFormData((prev) => ({ ...prev, [name]: normalizedValue }));
+      return;
+    }
+
+    if (name === 'aadhaarCardNumber') {
+      normalizedValue = String(value || '')
+        .replace(/\D/g, '')
+        .slice(0, 12);
+      setFormData((prev) => ({ ...prev, [name]: normalizedValue }));
+      return;
+    }
 
     // Real-time validation for email and phone
     if (name === 'email') {
@@ -264,6 +311,20 @@ function Login() {
 
           if (!selectedCategories.length || !selectedSubCategories.length || requiredProfessionalFields.some((value) => !String(value || '').trim())) {
             setError('Professional registration requires all fields: category, subcategory, photo, PAN/Aadhaar details, experience, short bio, email, password, and confirm password.');
+            setLoading(false);
+            return;
+          }
+
+          const panValidationError = validatePanCardNumber(formData.panCardNumber);
+          if (panValidationError) {
+            setError(panValidationError);
+            setLoading(false);
+            return;
+          }
+
+          const aadhaarValidationError = validateAadhaarCardNumber(formData.aadhaarCardNumber);
+          if (aadhaarValidationError) {
+            setError(aadhaarValidationError);
             setLoading(false);
             return;
           }
@@ -643,6 +704,9 @@ function Login() {
                       name="panCardNumber"
                       value={formData.panCardNumber}
                       onChange={handleChange}
+                      maxLength={10}
+                      pattern="[A-Za-z0-9]{10}"
+                      inputMode="text"
                       placeholder="ABCDE1234F"
                       required
                       disabled={loading}
@@ -657,6 +721,9 @@ function Login() {
                       name="aadhaarCardNumber"
                       value={formData.aadhaarCardNumber}
                       onChange={handleChange}
+                      maxLength={12}
+                      pattern="\d{12}"
+                      inputMode="numeric"
                       placeholder="12-digit Aadhaar number"
                       required
                       disabled={loading}

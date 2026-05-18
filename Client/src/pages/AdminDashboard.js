@@ -1882,6 +1882,8 @@ function AdminDashboard() {
                       <tr>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Professional Photo</th>
+                        <th>Submitted At</th>
                         <th>Category</th>
                         <th>Subcategory</th>
                         <th>PAN</th>
@@ -1897,6 +1899,16 @@ function AdminDashboard() {
                         <tr key={application._id}>
                           <td>{application.userId?.name || 'Unknown'}</td>
                           <td>{application.userId?.email || 'Unknown'}</td>
+                          <td>
+                            {application.userId?.profileImage ? (
+                              <a href={application.userId.profileImage} target="_blank" rel="noreferrer" className="kyc-doc-link">
+                                View Photo
+                              </a>
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td>{application.createdAt ? new Date(application.createdAt).toLocaleString() : 'TBD'}</td>
                           <td>{application.category || '-'}</td>
                           <td>{application.subCategory || '-'}</td>
                           <td>{application.panCardNumber || '-'}</td>

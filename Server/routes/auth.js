@@ -40,6 +40,10 @@ const normalizeArrayField = (fieldValue) => {
     .filter(Boolean);
 };
 
+  const isValidPanCardNumber = (value) => /^[A-Z0-9]{10}$/.test(String(value || '').trim().toUpperCase());
+
+  const isValidAadhaarCardNumber = (value) => /^\d{12}$/.test(String(value || '').trim());
+
 // Register
 router.post(
   '/register',
@@ -75,6 +79,16 @@ router.post(
 
     if (!name || !normalizedEmail || !password || !normalizedPhone || !normalizedCity || !normalizedUserType) {
       return res.status(400).json({ message: 'Name, email, password, phone, city and account type are required' });
+    }
+
+    if (normalizedUserType === 'professional') {
+      if (!isValidPanCardNumber(panCardNumber)) {
+        return res.status(400).json({ message: 'PAN Card Number must be exactly 10 alphanumeric characters' });
+      }
+
+      if (!isValidAadhaarCardNumber(aadhaarCardNumber)) {
+        return res.status(400).json({ message: 'Aadhaar Card Number must be exactly 12 digits' });
+      }
     }
 
     // Check if user exists by email or phone

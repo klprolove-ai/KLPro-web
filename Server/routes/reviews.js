@@ -4,6 +4,7 @@ const {
   createReview,
   getProductReviews,
   getProfessionalReviews,
+  getServiceReviews,
   getAllReviews,
   deleteReview,
 } = require('../controllers/reviewController');
@@ -17,6 +18,7 @@ router.delete('/:id', verifyToken, deleteReview);
 // Public routes
 router.get('/product/:productId', getProductReviews);
 router.get('/professional/:professionalId', getProfessionalReviews);
+router.get('/service/:serviceId', getServiceReviews);
 
 // Admin routes
 router.get('/', verifyAdminToken, getAllReviews);

@@ -61,6 +61,54 @@ const profileImageUpload = (req, res, next) => {
   });
 };
 
+// Update current live location for the logged-in professional
+router.put('/me/location', authMiddleware, async (req, res) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: 'Unauthorized request' });
+    }
+
+    const latitude = Number(req.body.latitude);
+    const longitude = Number(req.body.longitude);
+    const accuracy = req.body.accuracy !== undefined && req.body.accuracy !== null ? Number(req.body.accuracy) : null;
+    const address = typeof req.body.address === 'string' ? req.body.address.trim() : '';
+
+    if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+      return res.status(400).json({ message: 'Valid latitude and longitude are required' });
+    }
+
+    const professional = await Professional.findOneAndUpdate(
+      { userId: req.userId },
+      {
+        $set: {
+          currentLocation: {
+            latitude,
+            longitude,
+            accuracy: Number.isNaN(accuracy) ? null : accuracy,
+            address,
+            updatedAt: new Date(),
+          },
+        },
+      },
+      { new: true }
+    ).populate('userId', 'name email phone rating approvalStatus profileImage');
+
+    if (!professional) {
+      return res.status(404).json({ message: 'Professional profile not found' });
+    }
+
+    const result = professional.toObject();
+    result.currentCity = resolveProfessionalCity(result);
+
+    res.json({
+      success: true,
+      professional: result,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Submit or update rating for a professional
 router.post('/:id/rate', authMiddleware, async (req, res) => {
   try {

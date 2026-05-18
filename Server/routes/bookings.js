@@ -21,6 +21,10 @@ const sanitizeBookingForProfessional = (bookingDoc) => {
 
   delete booking.startOtp;
   delete booking.completionOtp;
+  if (booking.customerId && typeof booking.customerId === 'object') {
+    delete booking.customerId.email;
+    delete booking.customerId.phone;
+  }
   return booking;
 };
 
@@ -152,7 +156,12 @@ router.get('/professional/my-jobs', authMiddleware, async (req, res) => {
     }
 
     const bookings = await Booking.find({ professionalId: professional._id })
-      .populate('customerId', 'name email phone city')
+      .populate('customerId', 'name city')
+      .populate({
+        path: 'professionalId',
+        select: 'userId currentCity currentLocation',
+        populate: { path: 'userId', select: 'name profileImage' },
+      })
       .populate('serviceId', 'name basePrice category subCategory')
       .sort({ createdAt: -1 });
 
@@ -239,7 +248,12 @@ router.put('/professional/:id/status', authMiddleware, async (req, res) => {
     }
 
     const booking = await Booking.findOne({ _id: req.params.id, professionalId: professional._id })
-      .populate('customerId', 'name email phone city')
+      .populate('customerId', 'name city')
+      .populate({
+        path: 'professionalId',
+        select: 'userId currentCity currentLocation',
+        populate: { path: 'userId', select: 'name profileImage' },
+      })
       .populate('serviceId', 'name basePrice category subCategory');
 
     if (!booking) {
@@ -497,7 +511,11 @@ router.post('/:id/verify-completion-otp', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const bookings = await Booking.find({ customerId: req.userId })
-      .populate('professionalId', 'userId')
+      .populate({
+        path: 'professionalId',
+        select: 'userId currentCity currentLocation',
+        populate: { path: 'userId', select: 'name profileImage phone' },
+      })
       .populate('serviceId', 'name basePrice')
       .sort({ createdAt: -1 });
     res.json(bookings);
@@ -511,7 +529,11 @@ router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
       .populate('customerId', 'name email phone')
-      .populate('professionalId', 'userId')
+      .populate({
+        path: 'professionalId',
+        select: 'userId currentCity currentLocation',
+        populate: { path: 'userId', select: 'name profileImage phone' },
+      })
       .populate('serviceId', 'name');
 
     if (!booking) {

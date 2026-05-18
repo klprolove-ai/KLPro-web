@@ -14,12 +14,16 @@ const reviewSchema = new mongoose.Schema(
     },
     reviewType: {
       type: String,
-      enum: ['product', 'professional'],
+      enum: ['product', 'professional', 'service'],
       required: true,
     },
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
+    },
+    service: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Service',
     },
     professional: {
       type: mongoose.Schema.Types.ObjectId,
@@ -43,6 +47,11 @@ const reviewSchema = new mongoose.Schema(
 // Index to prevent duplicate reviews
 reviewSchema.index(
   { reviewer: 1, product: 1, reviewType: 1 },
+  { sparse: true, unique: true }
+);
+
+reviewSchema.index(
+  { reviewer: 1, service: 1, reviewType: 1 },
   { sparse: true, unique: true }
 );
 

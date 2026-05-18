@@ -31,8 +31,8 @@ function Footer() {
             {/* Company Info */}
             <div className="footer-section">
               <div className="footer-logo">
-                <img src="/kl.png" alt="Klpro (OPC) private limited" />
-                <h3>Klpro (OPC) private limited</h3>
+                <img src="/kl.png" alt="KLPro (OPC) Private Limited" />
+                <h3>KLPro (OPC) Private Limited</h3>
               </div>
               <p className="footer-desc">Professional home services at your doorstep. Connecting quality professionals with customers since 2024.</p>
             </div>
@@ -121,7 +121,7 @@ function Footer() {
       <div className="footer-bottom">
         <div className="container">
           <div className="footer-bottom-content">
-            <p>&copy; 2024 Klpro (OPC) private limited. All rights reserved.</p>
+            <p>&copy; 2024 KLPro (OPC) Private Limited. All rights reserved.</p>
 
           </div>
         </div>

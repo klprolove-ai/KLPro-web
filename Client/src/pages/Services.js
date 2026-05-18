@@ -4,19 +4,6 @@ import './Services.css';
 import API_BASE_URL from '../config/apiConfig';
 import { SERVICE_HIERARCHY, getHierarchyOptions, getServiceTypeOptions } from '../config/serviceHierarchy';
 
-const buildProfessionalsPath = (params) => {
-  const searchParams = new URLSearchParams();
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && String(value).trim()) {
-      searchParams.set(key, String(value));
-    }
-  });
-
-  const search = searchParams.toString();
-  return search ? `/professionals?${search}` : '/professionals';
-};
-
 function Services() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -342,24 +329,8 @@ function Services() {
     return 0;
   });
 
-  const handleBookNow = (service) => {
-    const bookingDraft = {
-      serviceId: service.id,
-      serviceName: service.name,
-      scheduledDate: new Date().toISOString().slice(0, 10),
-      expectedPrice: service.price,
-    };
-
-    localStorage.setItem('bookingDraft', JSON.stringify(bookingDraft));
-    navigate(
-      buildProfessionalsPath({
-        service: service.name,
-        category: service.category,
-        subCategory: service.subCategory,
-        subSubCategory: service.subSubCategory,
-        serviceType: service.serviceType,
-      })
-    );
+  const openServiceDetails = (service) => {
+    navigate(`/services/${service.id}`);
   };
 
   return (
@@ -574,29 +545,27 @@ function Services() {
               <div className="services-grid">
                 {sorted.length > 0 ? (
                   sorted.map((service) => (
-                    <div key={service.id} className="service-card">
+                    <div key={service.id} className="service-card" onClick={() => openServiceDetails(service)} role="button" tabIndex={0} onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openServiceDetails(service);
+                      }
+                    }}>
                       <div className="service-image">
                         {service.image ? (
-                          <img src={service.image} alt={service.name} />
+                          <img
+                            src={service.image}
+                            alt={service.name}
+                            onClick={() => openServiceDetails(service)}
+                            style={{ cursor: 'pointer' }}
+                          />
                         ) : (
-                          <div className="image-placeholder">📷</div>
+                          <div className="image-placeholder" onClick={() => openServiceDetails(service)} style={{ cursor: 'pointer' }}>📷</div>
                         )}
                       </div>
                       
                       <div className="service-content">
                         <h3 className="service-name">{service.name}</h3>
-                        <p className="service-description">{service.description}</p>
-
-                        <div className="service-hierarchy-badges">
-                          <span className="service-hierarchy-badge">{service.category}</span>
-                          {service.subCategory && <span className="service-hierarchy-badge">{service.subCategory}</span>}
-                          {service.subSubCategory && (
-                            <span className="service-hierarchy-badge">{service.subSubCategory}</span>
-                          )}
-                          {service.serviceType && (
-                            <span className="service-hierarchy-badge">{service.serviceType}</span>
-                          )}
-                        </div>
                         
                         <div className="rating-section">
                           <span className="rating">⭐ {service.rating.toFixed(1)}</span>
@@ -612,8 +581,11 @@ function Services() {
 
                         <div className="service-footer">
                           <span className="price">₹{service.price}</span>
-                          <button className="book-now-btn" type="button" onClick={() => handleBookNow(service)}>
-                            Book Now
+                          <button className="book-now-btn" type="button" onClick={(event) => {
+                            event.stopPropagation();
+                            openServiceDetails(service);
+                          }}>
+                            View Details
                           </button>
                         </div>
                       </div>

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/apiConfig';
+import { useCall } from '../context/CallContext';
 import './WorkOrdersPage.css';
 
 const WorkOrdersPage = () => {
   const navigate = useNavigate();
+  const { startBookingAudioCall, isCallBusy } = useCall();
   const [workOrders, setWorkOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,6 +16,12 @@ const WorkOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [startOtp, setStartOtp] = useState('');
+  const [startPhoto, setStartPhoto] = useState(null);
+  const [completionOtp, setCompletionOtp] = useState('');
+  const [completionPhoto, setCompletionPhoto] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
 
   const normalizeWorkOrder = useCallback((booking) => {
     const serviceAddress = booking?.serviceAddress || {};
@@ -24,8 +32,6 @@ const WorkOrdersPage = () => {
     return {
       ...booking,
       userName: booking?.customerId?.name || booking?.userName || 'N/A',
-      userEmail: booking?.customerId?.email || booking?.userEmail || 'N/A',
-      userPhone: booking?.customerId?.phone || booking?.userPhone || '',
       serviceName: booking?.serviceId?.name || booking?.serviceName || 'Service Booking',
       bookingDate: booking?.scheduledDate || booking?.bookingDate || null,
       bookingTime: booking?.scheduledTime || booking?.bookingTime || '',
@@ -81,7 +87,6 @@ const WorkOrdersPage = () => {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter(order => 
         order.userName?.toLowerCase().includes(search) ||
-        order.userEmail?.toLowerCase().includes(search) ||
         order.serviceName?.toLowerCase().includes(search) ||
         order._id?.includes(search)
       );
@@ -136,6 +141,143 @@ const WorkOrdersPage = () => {
     }
   };
 
+  const handleCallCustomer = async (bookingId) => {
+    try {
+      setActionMessage('');
+      await startBookingAudioCall(bookingId);
+    } catch (callError) {
+      setActionMessage(callError.message || 'Unable to start call');
+    }
+  };
+
+  const handleStartWork = async () => {
+    if (!selectedOrder) return;
+    if (!startOtp.trim()) {
+      setActionMessage('Enter the start OTP before starting work.');
+      return;
+    }
+    if (!startPhoto) {
+      setActionMessage('Upload the start photo before starting work.');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setActionMessage('');
+
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('startOtp', startOtp.trim());
+      formData.append('startPhoto', startPhoto);
+
+      await axios.post(
+        `${API_BASE_URL}/bookings/professional/${selectedOrder._id}/start`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      setActionMessage('Work started successfully.');
+      setStartOtp('');
+      setStartPhoto(null);
+      await fetchWorkOrders();
+    } catch (startError) {
+      setActionMessage(startError.response?.data?.message || 'Failed to start work');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePrepareCompletion = async () => {
+    if (!selectedOrder) return;
+    if (!completionPhoto) {
+      setActionMessage('Upload the final work image before generating the completion OTP.');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setActionMessage('');
+
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('endPhoto', completionPhoto);
+
+      await axios.post(
+        `${API_BASE_URL}/bookings/professional/${selectedOrder._id}/prepare-completion`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      setActionMessage('Final OTP generated. Ask the customer to share it here.');
+      setCompletionPhoto(null);
+      await fetchWorkOrders();
+    } catch (completionError) {
+      setActionMessage(completionError.response?.data?.message || 'Failed to generate completion OTP');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCompleteWork = async () => {
+    if (!selectedOrder) return;
+    if (!completionOtp.trim()) {
+      setActionMessage('Enter the completion OTP to finish the work order.');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setActionMessage('');
+
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_BASE_URL}/bookings/professional/${selectedOrder._id}/complete`,
+        { completionOtp: completionOtp.trim() },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setActionMessage('Work order completed successfully.');
+      setCompletionOtp('');
+      await fetchWorkOrders();
+    } catch (completeError) {
+      setActionMessage(completeError.response?.data?.message || 'Failed to complete work order');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openOrderModal = (order) => {
+    setSelectedOrder(order);
+    setStartOtp('');
+    setStartPhoto(null);
+    setCompletionOtp('');
+    setCompletionPhoto(null);
+    setActionMessage('');
+    setShowModal(true);
+  };
+
+  const closeOrderModal = () => {
+    setShowModal(false);
+    setSelectedOrder(null);
+    setStartOtp('');
+    setStartPhoto(null);
+    setCompletionOtp('');
+    setCompletionPhoto(null);
+    setActionMessage('');
+  };
+
   if (loading) {
     return (
       <div className="work-orders-container">
@@ -187,7 +329,7 @@ const WorkOrdersPage = () => {
       <div className="filters-section">
         <input 
           type="text"
-          placeholder="Search by client name, email, service, or order ID..."
+          placeholder="Search by client name, service, or order ID..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="search-input"
@@ -233,16 +375,6 @@ const WorkOrdersPage = () => {
                     <span className="label">Name:</span>
                     <span className="value">{order.userName || 'N/A'}</span>
                   </div>
-                  <div className="info-row">
-                    <span className="label">Email:</span>
-                    <span className="value">{order.userEmail || 'N/A'}</span>
-                  </div>
-                  {order.userPhone && (
-                    <div className="info-row">
-                      <span className="label">Phone:</span>
-                      <span className="value">{order.userPhone}</span>
-                    </div>
-                  )}
                 </div>
 
                 <div className="order-section">
@@ -298,10 +430,7 @@ const WorkOrdersPage = () => {
                 {['pending', 'confirmed'].includes(order.status) && (
                   <button
                     className="btn-action"
-                    onClick={() => {
-                      setSelectedOrder(order);
-                      setShowModal(true);
-                    }}
+                    onClick={() => openOrderModal(order)}
                   >
                     Update Status
                   </button>
@@ -324,11 +453,102 @@ const WorkOrdersPage = () => {
 
       {/* Status Update Modal */}
       {showModal && selectedOrder && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={closeOrderModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Update Work Order Status</h2>
             <p>Order: {selectedOrder.serviceName}</p>
             <p className="modal-subtitle">Current Status: <strong>{selectedOrder.status.toUpperCase()}</strong></p>
+
+            {['confirmed', 'in-progress'].includes(selectedOrder.status) && (
+              <div className="status-options">
+                <button
+                  type="button"
+                  className="status-option accepted"
+                  onClick={() => handleCallCustomer(selectedOrder._id)}
+                  disabled={isCallBusy}
+                >
+                  📞 Call Customer
+                </button>
+              </div>
+            )}
+
+            {selectedOrder.status === 'confirmed' && (
+              <div className="status-options">
+                <div className="order-section" style={{ width: '100%' }}>
+                  <h4>Start Work</h4>
+                  <div className="info-row">
+                    <span className="label">Start OTP:</span>
+                    <input
+                      type="text"
+                      value={startOtp}
+                      onChange={(event) => setStartOtp(event.target.value)}
+                      placeholder="Enter the start OTP"
+                      className="search-input"
+                    />
+                  </div>
+                  <div className="info-row">
+                    <span className="label">Start Photo:</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setStartPhoto(event.target.files?.[0] || null)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="status-option accepted"
+                    onClick={handleStartWork}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? 'Starting...' : 'Verify OTP & Start Work'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedOrder.status === 'in-progress' && (
+              <div className="status-options">
+                <div className="order-section" style={{ width: '100%' }}>
+                  <h4>Finish Work</h4>
+                  <div className="info-row">
+                    <span className="label">Final Work Image:</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setCompletionPhoto(event.target.files?.[0] || null)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="status-option accepted"
+                    onClick={handlePrepareCompletion}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? 'Uploading...' : 'Upload Final Image & Generate OTP'}
+                  </button>
+                  <div className="info-row" style={{ marginTop: 12 }}>
+                    <span className="label">Completion OTP:</span>
+                    <input
+                      type="text"
+                      value={completionOtp}
+                      onChange={(event) => setCompletionOtp(event.target.value)}
+                      placeholder="Enter the final OTP"
+                      className="search-input"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="status-option accepted"
+                    onClick={handleCompleteWork}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? 'Completing...' : 'Verify Final OTP & Complete'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {actionMessage && <div className="alert alert-error">{actionMessage}</div>}
 
             <div className="status-options">
               {selectedOrder.status === 'pending' && (
@@ -378,7 +598,7 @@ const WorkOrdersPage = () => {
 
             <button
               className="btn-close"
-              onClick={() => setShowModal(false)}
+              onClick={closeOrderModal}
             >
               Close
             </button>

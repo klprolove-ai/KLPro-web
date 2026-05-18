@@ -8,6 +8,7 @@ import ProfessionalRequestAlert from './components/ProfessionalRequestAlert';
 import FirstVisitLocationPrompt from './components/FirstVisitLocationPrompt';
 import Home from './pages/Home';
 import Services from './pages/Services';
+import ServiceDetails from './pages/ServiceDetails';
 import Professionals from './pages/Professionals';
 import ProfessionalDetails from './pages/ProfessionalDetails';
 import Bookings from './pages/Bookings';
@@ -70,6 +71,7 @@ function App() {
                       <Route path="/login" element={<Login />} />
                       <Route path="/forgot-password" element={<ForgotPassword />} />
                       <Route path="/services" element={<Services />} />
+                      <Route path="/services/:id" element={<ServiceDetails />} />
                       <Route path="/products" element={<Products />} />
                       <Route path="/product/:id" element={<ProductDetails />} />
                       <Route path="/cart" element={<Cart />} />

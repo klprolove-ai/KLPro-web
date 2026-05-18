@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './ReviewForm.css';
 import { createReview } from '../api/services';
 
-const ReviewForm = ({ productId, professionalId, onReviewSubmit, reviewType }) => {
+const ReviewForm = ({ productId, professionalId, serviceId, onReviewSubmit, reviewType, subjectLabel = 'this item' }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,6 +31,7 @@ const ReviewForm = ({ productId, professionalId, onReviewSubmit, reviewType }) =
         reviewType,
         ...(reviewType === 'product' && { productId }),
         ...(reviewType === 'professional' && { professionalId }),
+        ...(reviewType === 'service' && { serviceId }),
       };
 
       const response = await createReview(reviewData);
@@ -59,7 +60,7 @@ const ReviewForm = ({ productId, professionalId, onReviewSubmit, reviewType }) =
           <p className="section-eyebrow">Your feedback</p>
           <h3>Leave a Review</h3>
         </div>
-        <p className="review-form-subtitle">Share how this product worked for you.</p>
+        <p className="review-form-subtitle">Share how {subjectLabel} worked for you.</p>
       </div>
       <form onSubmit={handleSubmit} className="review-form">
         <div className="form-group">
@@ -84,7 +85,7 @@ const ReviewForm = ({ productId, professionalId, onReviewSubmit, reviewType }) =
             id="comment"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Share your experience with this product..."
+            placeholder={`Share your experience with ${subjectLabel}...`}
             rows="5"
             disabled={loading}
           />

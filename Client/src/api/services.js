@@ -76,6 +76,10 @@ export const deleteProductImage = (productId, publicId) =>
 
 export const getProductCategories = () => api.get('/products/categories');
 
+export const getServiceById = (id) => api.get(`/services/${id}`);
+
+export const getServices = () => api.get('/services');
+
 // Review Services
 export const createReview = (data) => api.post('/reviews', data);
 
@@ -91,6 +95,13 @@ export const getProfessionalReviews = (professionalId, filters = {}) => {
   if (filters.page) params.append('page', filters.page);
   if (filters.limit) params.append('limit', filters.limit);
   return api.get(`/reviews/professional/${professionalId}?${params.toString()}`);
+};
+
+export const getServiceReviews = (serviceId, filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.page) params.append('page', filters.page);
+  if (filters.limit) params.append('limit', filters.limit);
+  return api.get(`/reviews/service/${serviceId}?${params.toString()}`);
 };
 
 export const getAllReviews = (filters = {}) => {

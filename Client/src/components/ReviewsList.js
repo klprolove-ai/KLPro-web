@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './ReviewsList.css';
 import { deleteReview } from '../api/services';
 
-const ReviewsList = ({ reviews, currentPage, totalPages, onPageChange }) => {
+const ReviewsList = ({ reviews, currentPage, totalPages, onPageChange, emptyTitle = 'No reviews yet', emptyMessage = 'Be the first to leave feedback.' }) => {
   const [deleting, setDeleting] = useState(null);
   const user = JSON.parse(localStorage.getItem('user'));
 
@@ -50,8 +50,8 @@ const ReviewsList = ({ reviews, currentPage, totalPages, onPageChange }) => {
     return (
       <div className="reviews-list-container">
         <div className="no-reviews-card">
-          <p className="no-reviews-title">No reviews yet</p>
-          <p className="no-reviews">Be the first to leave feedback for this product.</p>
+          <p className="no-reviews-title">{emptyTitle}</p>
+          <p className="no-reviews">{emptyMessage}</p>
         </div>
       </div>
     );

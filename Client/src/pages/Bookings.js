@@ -35,6 +35,40 @@ const getProfessionalName = (professionalIdField) => {
   return 'Professional';
 };
 
+const getProfessionalLocation = (professionalIdField) => {
+  if (!professionalIdField || typeof professionalIdField !== 'object') return null;
+  return professionalIdField.currentLocation || null;
+};
+
+const formatLiveLocationLabel = (location) => {
+  if (!location) return '';
+
+  const latitude = Number(location.latitude);
+  const longitude = Number(location.longitude);
+  const coordinateText = Number.isNaN(latitude) || Number.isNaN(longitude)
+    ? ''
+    : `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+
+  const updatedAt = location.updatedAt ? new Date(location.updatedAt) : null;
+  const freshnessText = updatedAt && !Number.isNaN(updatedAt.getTime())
+    ? `Updated ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : 'Updating live';
+
+  return [location.address, coordinateText, freshnessText].filter(Boolean).join(' · ');
+};
+
+const buildMapEmbedUrl = (latitude, longitude) => {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    return '';
+  }
+
+  const delta = 0.01;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}&layer=mapnik&marker=${lat}%2C${lng}`;
+};
+
 const paymentOptions = [
   {
     value: 'razorpay',
@@ -340,6 +374,18 @@ function Bookings() {
 
     return () => {
       socket.off('booking-status-changed', handleStatusChanged);
+    };
+  }, [token, refreshBookings]);
+
+  useEffect(() => {
+    if (!token) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      refreshBookings();
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
     };
   }, [token, refreshBookings]);
 
@@ -780,6 +826,25 @@ function Bookings() {
                   <p><strong>Amount:</strong> INR {booking.price}</p>
                   {booking.startOtp && <p><strong>Start OTP:</strong> {booking.startOtp}</p>}
                   {booking.completionOtpIssuedAt && <p><strong>Final OTP:</strong> {booking.completionOtp}</p>}
+                  {getProfessionalLocation(booking.professionalId) && (
+                    <>
+                      <p>
+                        <strong>Live Location:</strong>{' '}
+                        {formatLiveLocationLabel(getProfessionalLocation(booking.professionalId)) || 'Updating live from the professional device'}
+                      </p>
+                      <div className="booking-map-frame">
+                        <iframe
+                          title={`Live map for ${booking?.serviceId?.name || 'booking'}`}
+                          src={buildMapEmbedUrl(
+                            getProfessionalLocation(booking.professionalId).latitude,
+                            getProfessionalLocation(booking.professionalId).longitude
+                          )}
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="booking-status">
                   <span className={`status-badge ${booking.status}`}>

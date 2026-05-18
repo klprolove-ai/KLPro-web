@@ -61,6 +61,29 @@ const professionalSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    currentLocation: {
+      latitude: {
+        type: Number,
+        default: null,
+      },
+      longitude: {
+        type: Number,
+        default: null,
+      },
+      accuracy: {
+        type: Number,
+        default: null,
+      },
+      address: {
+        type: String,
+        default: '',
+        trim: true,
+      },
+      updatedAt: {
+        type: Date,
+        default: null,
+      },
+    },
     panCardNumber: {
       type: String,
       required: true,

@@ -510,6 +510,74 @@ function ProfessionalDashboard() {
     setSaveMessage('Location updated successfully. Save changes to update your profile.');
   };
 
+  useEffect(() => {
+    if (!token) return undefined;
+    if (!['approved', 'completed'].includes(String(approvalStatus || '').toLowerCase()) && String(verificationStatus || '').toLowerCase() !== 'completed') {
+      return undefined;
+    }
+
+    if (!navigator.geolocation) {
+      setError('Location sharing is not supported in this browser.');
+      return undefined;
+    }
+
+    let active = true;
+
+    const updateLiveLocation = async (position) => {
+      try {
+        const { latitude, longitude, accuracy } = position.coords;
+        let address = '';
+
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=en&lat=${latitude}&lon=${longitude}`,
+            {
+              headers: {
+                Accept: 'application/json',
+                'Accept-Language': 'en',
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            address = data?.display_name || data?.address?.city || data?.address?.town || data?.address?.village || '';
+          }
+        } catch (locationError) {
+          console.error('Reverse geocoding failed:', locationError);
+        }
+
+        if (!active) return;
+
+        await fetch(`${API_BASE_URL}/professionals/me/location`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ latitude, longitude, accuracy, address }),
+        });
+      } catch (locationUpdateError) {
+        console.error('Failed to update live location:', locationUpdateError);
+      }
+    };
+
+    const watchId = navigator.geolocation.watchPosition(
+      updateLiveLocation,
+      () => {
+        if (active) {
+          setError('Please allow location access to share your live work location.');
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 10000 }
+    );
+
+    return () => {
+      active = false;
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [approvalStatus, token, verificationStatus]);
+
   if (loading) {
     return (
       <div className="professional-dashboard">

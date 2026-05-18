@@ -1,12 +1,13 @@
 const Review = require('../models/Review');
 const Product = require('../models/Product');
+const Service = require('../models/Service');
 const User = require('../models/User');
 const Professional = require('../models/Professional');
 
 // Create a review
 exports.createReview = async (req, res) => {
   try {
-    const { rating, comment, reviewType, productId, professionalId } = req.body;
+    const { rating, comment, reviewType, productId, professionalId, serviceId } = req.body;
     const userId = req.user._id;
     let professionalUserId = null;
 
@@ -17,7 +18,7 @@ exports.createReview = async (req, res) => {
       });
     }
 
-    if (![1, 2, 3, 4, 5].includes(parseInt(rating))) {
+    if (![1, 2, 3, 4, 5].includes(parseInt(rating, 10))) {
       return res.status(400).json({
         success: false,
         message: 'Rating must be between 1 and 5',
@@ -25,7 +26,7 @@ exports.createReview = async (req, res) => {
     }
 
     let reviewData = {
-      rating: parseInt(rating),
+      rating: parseInt(rating, 10),
       comment,
       reviewType,
       reviewer: userId,
@@ -60,7 +61,7 @@ exports.createReview = async (req, res) => {
         const updatedReview = await Review.findByIdAndUpdate(
           existingReview._id,
           {
-            rating: parseInt(rating),
+            rating: parseInt(rating, 10),
             comment,
           },
           { new: true }
@@ -187,6 +188,71 @@ exports.createReview = async (req, res) => {
       }
 
       reviewData.professional = professionalUserId;
+    } else if (reviewType === 'service') {
+      if (!serviceId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Service ID is required for service reviews',
+        });
+      }
+
+      const service = await Service.findById(serviceId);
+      if (!service) {
+        return res.status(404).json({
+          success: false,
+          message: 'Service not found',
+        });
+      }
+
+      const existingReview = await Review.findOne({
+        reviewer: userId,
+        service: serviceId,
+        reviewType: 'service',
+        isActive: { $ne: false },
+      });
+
+      if (existingReview) {
+        const updatedReview = await Review.findByIdAndUpdate(
+          existingReview._id,
+          {
+            rating: parseInt(rating, 10),
+            comment,
+          },
+          { new: true }
+        );
+
+        const allReviews = await Review.find({
+          service: serviceId,
+          reviewType: 'service',
+          isActive: { $ne: false },
+        });
+
+        const avgRating =
+          allReviews.length > 0
+            ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+            : 0;
+
+        await Service.findByIdAndUpdate(
+          serviceId,
+          {
+            rating: avgRating,
+            reviewCount: allReviews.length,
+          },
+          { new: true }
+        );
+
+        const populatedReview = await Review.findById(updatedReview._id)
+          .populate('reviewer', 'name profileImage')
+          .populate('service', 'name');
+
+        return res.status(200).json({
+          success: true,
+          message: 'Review updated successfully',
+          review: populatedReview,
+        });
+      }
+
+      reviewData.service = serviceId;
     }
 
     const review = await Review.create(reviewData);
@@ -232,12 +298,33 @@ exports.createReview = async (req, res) => {
         },
         { new: true }
       );
+    } else if (reviewType === 'service') {
+      const allReviews = await Review.find({
+        service: serviceId,
+        reviewType: 'service',
+        isActive: { $ne: false },
+      });
+
+      const avgRating =
+        allReviews.length > 0
+          ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+          : 0;
+
+      await Service.findByIdAndUpdate(
+        serviceId,
+        {
+          rating: avgRating,
+          reviewCount: allReviews.length,
+        },
+        { new: true }
+      );
     }
 
     const populatedReview = await Review.findById(review._id)
       .populate('reviewer', 'name profileImage')
       .populate('product', 'name')
-      .populate('professional', 'name');
+      .populate('professional', 'name')
+      .populate('service', 'name');
 
     res.status(201).json({
       success: true,
@@ -344,6 +431,54 @@ exports.getProfessionalReviews = async (req, res) => {
       reviews,
       pagination: {
         current: parseInt(page),
+        pages: Math.ceil(total / limit),
+        total,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Get reviews for a service
+exports.getServiceReviews = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+
+    const service = await Service.findById(serviceId);
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found',
+      });
+    }
+
+    const skip = (page - 1) * limit;
+    const total = await Review.countDocuments({
+      service: serviceId,
+      reviewType: 'service',
+      isActive: { $ne: false },
+    });
+
+    const reviews = await Review.find({
+      service: serviceId,
+      reviewType: 'service',
+      isActive: { $ne: false },
+    })
+      .populate('reviewer', 'name profileImage')
+      .skip(skip)
+      .limit(parseInt(limit, 10))
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      reviews,
+      pagination: {
+        current: parseInt(page, 10),
         pages: Math.ceil(total / limit),
         total,
       },
@@ -464,6 +599,29 @@ exports.deleteReview = async (req, res) => {
 
         await User.findByIdAndUpdate(
           review.professional,
+          { rating: avgRating, reviewCount: allReviews.length },
+          { new: true }
+        );
+      }
+    } else if (review.reviewType === 'service') {
+      const allReviews = await Review.find({
+        service: review.service,
+        reviewType: 'service',
+        isActive: true,
+      });
+
+      if (allReviews.length === 0) {
+        await Service.findByIdAndUpdate(
+          review.service,
+          { rating: 0, reviewCount: 0 },
+          { new: true }
+        );
+      } else {
+        const avgRating =
+          allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+
+        await Service.findByIdAndUpdate(
+          review.service,
           { rating: avgRating, reviewCount: allReviews.length },
           { new: true }
         );
