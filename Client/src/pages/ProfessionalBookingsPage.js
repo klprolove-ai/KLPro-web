@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/apiConfig';
+import BookingCancelDialog from '../components/BookingCancelDialog';
+import BookingRouteCard from '../components/BookingRouteCard';
 import './ProfessionalBookingsPage.css';
 
 const ProfessionalBookingsPage = () => {
@@ -17,6 +19,7 @@ const ProfessionalBookingsPage = () => {
   const [modalMode, setModalMode] = useState('view'); // 'view', 'cancel', 'reschedule'
   const [newDate, setNewDate] = useState('');
   const [newTime, setNewTime] = useState('');
+  const [cancelTarget, setCancelTarget] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -96,12 +99,17 @@ const ProfessionalBookingsPage = () => {
     return icons[status] || '📋';
   };
 
-  const handleCancelBooking = async () => {
+  const handleCancelBooking = async (reason) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(
-        `${API_BASE_URL}/bookings/${selectedBooking._id}/status`,
-        { status: 'cancelled' },
+      const cancelReason = String(reason || '').trim();
+      if (!cancelReason) {
+        setError('Please provide a reason for cancellation');
+        return;
+      }
+      await axios.post(
+        `${API_BASE_URL}/bookings/${selectedBooking._id}/cancel`,
+        { reason: cancelReason },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -112,6 +120,7 @@ const ProfessionalBookingsPage = () => {
       
       setShowModal(false);
       setSelectedBooking(null);
+      setCancelTarget(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to cancel booking');
     }
@@ -163,7 +172,8 @@ const ProfessionalBookingsPage = () => {
   const openCancelModal = (booking) => {
     setSelectedBooking(booking);
     setModalMode('cancel');
-    setShowModal(true);
+    setCancelTarget(booking);
+    setShowModal(false);
   };
 
   const openRescheduleModal = (booking) => {
@@ -329,6 +339,23 @@ const ProfessionalBookingsPage = () => {
                     <p className="description">{booking.location}</p>
                   </div>
                 )}
+
+                {['confirmed', 'in-progress'].includes(String(booking.status || '')) && (
+                  <BookingRouteCard
+                    title="Live Route & Distance"
+                    originLocation={booking.serviceAddress}
+                    destinationLocation={booking.professionalId?.currentLocation}
+                    originLabel="Your location"
+                    destinationLabel="Professional location"
+                  />
+                )}
+
+                {booking.cancelReason && (
+                  <div className="booking-section">
+                    <h4>Cancellation Reason</h4>
+                    <p className="description">{booking.cancelReason}</p>
+                  </div>
+                )}
               </div>
 
               <div className="booking-footer">
@@ -451,19 +478,6 @@ const ProfessionalBookingsPage = () => {
               </>
             )}
 
-            {modalMode === 'cancel' && (
-              <>
-                <h2>Cancel Booking</h2>
-                <div className="modal-body">
-                  <p className="warning">Are you sure you want to cancel this booking?</p>
-                  <p className="booking-service">{selectedBooking.serviceName}</p>
-                  <p className="booking-service-sub">
-                    Scheduled for {new Date(selectedBooking.bookingDate).toLocaleDateString('en-IN')} at {selectedBooking.bookingTime}
-                  </p>
-                </div>
-              </>
-            )}
-
             <div className="modal-actions">
               {modalMode === 'view' && (
                 <>
@@ -489,23 +503,6 @@ const ProfessionalBookingsPage = () => {
                 </>
               )}
 
-              {modalMode === 'reschedule' && (
-                <>
-                  <button
-                    className="btn-success"
-                    onClick={handleReschedule}
-                  >
-                    Confirm Reschedule
-                  </button>
-                  <button
-                    className="btn-close"
-                    onClick={() => setShowModal(false)}
-                  >
-                    Cancel
-                  </button>
-                </>
-              )}
-
               {modalMode === 'cancel' && (
                 <>
                   <button
@@ -526,6 +523,15 @@ const ProfessionalBookingsPage = () => {
           </div>
         </div>
       )}
+
+      <BookingCancelDialog
+        isOpen={Boolean(cancelTarget)}
+        title="Cancel Booking"
+        message="Please provide a cancellation reason. This will be visible to the professional and admin."
+        confirmLabel="Cancel Booking"
+        onClose={() => setCancelTarget(null)}
+        onConfirm={(reason) => handleCancelBooking(reason)}
+      />
     </div>
   );
 };

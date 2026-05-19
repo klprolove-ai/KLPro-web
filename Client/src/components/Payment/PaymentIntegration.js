@@ -7,21 +7,26 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayme
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const autoStartRef = useRef(false);
   const paymentTimeoutRef = useRef(null);
+
+  const getAuthToken = () => localStorage.getItem('userToken') || localStorage.getItem('token') || '';
 
   // Initialize Razorpay script
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
     script.async = true;
+    script.onload = () => setRazorpayLoaded(true);
+    script.onerror = () => setError('Payment gateway failed to load. Please refresh and try again.');
     document.body.appendChild(script);
     return () => document.body.removeChild(script);
   }, []);
 
   const verifyPayment = useCallback(async (razorpayResponse) => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
 
         const verifyResponse = await axios.post(`${API_BASE_URL}/payment/verify`,
           {
@@ -49,7 +54,11 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayme
   const handleRazorpayPayment = useCallback(async () => {
     try {
       setProcessing(true);
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
+
+      if (!token) {
+        throw new Error('Please login again before completing payment.');
+      }
 
       let razorpayOrderId = null;
       let paymentId = null;
@@ -104,6 +113,10 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayme
         }
       };
 
+      if (typeof window.Razorpay !== 'function') {
+        throw new Error('Payment gateway is still loading. Please try again.');
+      }
+
       const rzp = new window.Razorpay(options);
       
       // Handle payment cancellation
@@ -123,7 +136,7 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayme
           clearTimeout(paymentTimeoutRef.current);
         }
         try {
-          const token = localStorage.getItem('token');
+          const token = getAuthToken();
           console.log('Token available:', !!token);
           console.log('Attempting to cancel booking:', bookingId);
           
@@ -154,7 +167,7 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayme
   }, [amount, bookingId, verifyPayment, initialPayment, onPaymentComplete]);
 
   useEffect(() => {
-    if (!bookingId || !amount) return;
+    if (!bookingId || !amount || !razorpayLoaded) return;
     if (autoStartRef.current) return;
 
     autoStartRef.current = true;
@@ -163,7 +176,7 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayme
     paymentTimeoutRef.current = setTimeout(async () => {
       console.log('Payment timeout reached, cancelling booking:', bookingId);
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         await axios.post(`${API_BASE_URL}/bookings/${bookingId}/cancel`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
@@ -182,7 +195,7 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayme
     }, 5 * 60 * 1000); // 5 minutes
 
     handleRazorpayPayment();
-  }, [amount, bookingId, handleRazorpayPayment, onPaymentComplete]);
+  }, [amount, bookingId, handleRazorpayPayment, onPaymentComplete, razorpayLoaded]);
 
   return (
     <div className="payment-integration">

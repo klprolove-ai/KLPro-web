@@ -648,8 +648,11 @@ function ProfessionalDashboard() {
             onClick={() => navigate('/professional/work-orders')}
             className="pro-action-btn pro-action-btn-work-orders"
           >
-            Work Orders
+            Work Orders & Completion
           </button>
+          <p style={{ margin: '8px 0 0', fontSize: 13, color: '#5b6573' }}>
+            Open this to upload the final work image and verify the completion OTP.
+          </p>
         </div>
         <div className={`pro-approval ${approvalStatus}`}>
           <div>Status: {approvalStatus}</div>

@@ -1537,6 +1537,9 @@ function AdminDashboard() {
                           <div className="booking-info-stack">
                             <p><strong>Start OTP Verified At:</strong> {selectedBooking.startOtpVerifiedAt ? new Date(selectedBooking.startOtpVerifiedAt).toLocaleString() : 'N/A'}</p>
                             <p><strong>Final OTP Verified At:</strong> {selectedBooking.completionOtpVerifiedAt ? new Date(selectedBooking.completionOtpVerifiedAt).toLocaleString() : 'N/A'}</p>
+                            {selectedBooking.cancelReason && <p><strong>Cancellation Reason:</strong> {selectedBooking.cancelReason}</p>}
+                            {selectedBooking.cancelledByRole && <p><strong>Cancelled By:</strong> {selectedBooking.cancelledByRole}</p>}
+                            {selectedBooking.cancelledAt && <p><strong>Cancelled At:</strong> {new Date(selectedBooking.cancelledAt).toLocaleString()}</p>}
                           </div>
 
                           <div className="booking-photo-grid">

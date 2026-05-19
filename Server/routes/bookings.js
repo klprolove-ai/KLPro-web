@@ -235,11 +235,16 @@ router.get('/public/professional/:professionalId/slots', async (req, res) => {
 // Update booking status by professional
 router.put('/professional/:id/status', authMiddleware, async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, reason } = req.body;
     const allowedStatuses = ['confirmed', 'rejected', 'cancelled'];
 
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({ message: 'Invalid status update' });
+    }
+
+    const cancellationReason = String(reason || '').trim();
+    if (status === 'cancelled' && !cancellationReason) {
+      return res.status(400).json({ message: 'Cancellation reason is required' });
     }
 
     const professional = await Professional.findOne({ userId: req.userId });
@@ -268,11 +273,18 @@ router.put('/professional/:id/status', authMiddleware, async (req, res) => {
 
     booking.status = status;
     booking.decisionAt = new Date();
+
+    if (status === 'cancelled') {
+      booking.cancelReason = cancellationReason;
+      booking.cancelledByRole = 'professional';
+      booking.cancelledAt = new Date();
+    }
+
     appendAuditLog(booking, {
       action: status === 'confirmed' ? 'booking-approved' : status === 'rejected' ? 'booking-rejected' : 'booking-cancelled-by-professional',
       actorRole: 'professional',
       actorId: req.userId,
-      notes: `Booking marked as ${status}`,
+      notes: status === 'cancelled' ? `Booking cancelled by professional: ${cancellationReason}` : `Booking marked as ${status}`,
     });
     await booking.save();
 
@@ -754,6 +766,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
 // Cancel booking
 router.post('/:id/cancel', authMiddleware, async (req, res) => {
   try {
+    const cancellationReason = String(req.body?.reason || '').trim();
+
+    if (!cancellationReason) {
+      return res.status(400).json({ message: 'Cancellation reason is required' });
+    }
+
     const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
@@ -770,11 +788,14 @@ router.post('/:id/cancel', authMiddleware, async (req, res) => {
 
     booking.status = 'cancelled';
     booking.decisionAt = new Date();
+    booking.cancelReason = cancellationReason;
+    booking.cancelledByRole = 'customer';
+    booking.cancelledAt = new Date();
     appendAuditLog(booking, {
       action: 'booking-cancelled-by-customer',
       actorRole: 'customer',
       actorId: req.userId,
-      notes: 'Customer cancelled booking',
+      notes: `Customer cancelled booking: ${cancellationReason}`,
     });
     await booking.save();
 

@@ -237,6 +237,16 @@ function ProfessionalDetails() {
   const [totalReviewPages, setTotalReviewPages] = useState(1);
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
+  const bookingDraft = useMemo(() => {
+    try {
+      const draft = localStorage.getItem('bookingDraft');
+      return draft ? JSON.parse(draft) : null;
+    } catch (parseError) {
+      console.error('Invalid bookingDraft JSON:', parseError);
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setLiveNow(Date.now());
@@ -379,6 +389,17 @@ function ProfessionalDetails() {
     fetchReviews(professional.userId || professional.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [professional?.id, professional?.userId, currentReviewPage]);
+
+  useEffect(() => {
+    if (!professional?.id || !bookingDraft) return;
+    if (String(bookingDraft.professionalId || '') !== String(professional.id)) return;
+
+    if (bookingDraft.scheduledDate) {
+      setSelectedDate(bookingDraft.scheduledDate);
+    }
+    setSelectedSlot(bookingDraft.selectedSlot || bookingDraft.scheduledTime || '');
+    setSlotNotice('');
+  }, [bookingDraft, professional?.id]);
 
   const liveSlots = useMemo(() => {
     if (!professional) return [];

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config/apiConfig';
 import { useCall } from '../context/CallContext';
+import BookingCancelDialog from '../components/BookingCancelDialog';
+import BookingRouteCard from '../components/BookingRouteCard';
 import './WorkOrdersPage.css';
 
 const WorkOrdersPage = () => {
@@ -22,6 +24,7 @@ const WorkOrdersPage = () => {
   const [completionPhoto, setCompletionPhoto] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
+  const [cancelTarget, setCancelTarget] = useState(null);
 
   const normalizeWorkOrder = useCallback((booking) => {
     const serviceAddress = booking?.serviceAddress || {};
@@ -119,12 +122,12 @@ const WorkOrdersPage = () => {
     return icons[status] || '📋';
   };
 
-  const handleStatusUpdate = async (orderId, newStatus) => {
+  const handleStatusUpdate = async (orderId, newStatus, reason = '') => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.put(
         `${API_BASE_URL}/bookings/professional/${orderId}/status`,
-        { status: newStatus },
+        { status: newStatus, reason },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const updatedOrder = normalizeWorkOrder(response.data || {});
@@ -136,9 +139,16 @@ const WorkOrdersPage = () => {
       
       setShowModal(false);
       setSelectedOrder(null);
+      setCancelTarget(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update work order');
     }
+  };
+
+  const openCancelDialog = (order) => {
+    setActionMessage('');
+    setShowModal(false);
+    setCancelTarget(order);
   };
 
   const handleCallCustomer = async (bookingId) => {
@@ -421,6 +431,23 @@ const WorkOrdersPage = () => {
                     <p className="description">{order.location}</p>
                   </div>
                 )}
+
+                {order.cancelReason && (
+                  <div className="order-section">
+                    <h4>Cancellation Reason</h4>
+                    <p className="description">{order.cancelReason}</p>
+                  </div>
+                )}
+
+                {['confirmed', 'in-progress'].includes(String(order.status || '')) && (
+                  <BookingRouteCard
+                    title="Customer Location & Route"
+                    originLocation={order.professionalId?.currentLocation}
+                    destinationLocation={order.serviceAddress}
+                    originLabel="Your current location"
+                    destinationLabel="Customer location"
+                  />
+                )}
               </div>
 
               <div className="order-footer">
@@ -471,7 +498,6 @@ const WorkOrdersPage = () => {
                 </button>
               </div>
             )}
-
             {selectedOrder.status === 'confirmed' && (
               <div className="status-options">
                 <div className="order-section" style={{ width: '100%' }}>
@@ -488,11 +514,25 @@ const WorkOrdersPage = () => {
                   </div>
                   <div className="info-row">
                     <span className="label">Start Photo:</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => setStartPhoto(event.target.files?.[0] || null)}
-                    />
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      <label style={{ fontSize: 13, color: '#5b6573' }}>
+                        Choose from storage
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => setStartPhoto(event.target.files?.[0] || null)}
+                        />
+                      </label>
+                      <label style={{ fontSize: 13, color: '#5b6573' }}>
+                        Capture with camera
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={(event) => setStartPhoto(event.target.files?.[0] || null)}
+                        />
+                      </label>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -512,11 +552,25 @@ const WorkOrdersPage = () => {
                   <h4>Finish Work</h4>
                   <div className="info-row">
                     <span className="label">Final Work Image:</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => setCompletionPhoto(event.target.files?.[0] || null)}
-                    />
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      <label style={{ fontSize: 13, color: '#5b6573' }}>
+                        Choose from storage
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => setCompletionPhoto(event.target.files?.[0] || null)}
+                        />
+                      </label>
+                      <label style={{ fontSize: 13, color: '#5b6573' }}>
+                        Capture with camera
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={(event) => setCompletionPhoto(event.target.files?.[0] || null)}
+                        />
+                      </label>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -578,7 +632,7 @@ const WorkOrdersPage = () => {
                 <>
                   <button
                     className="status-option cancelled"
-                    onClick={() => handleStatusUpdate(selectedOrder._id, 'cancelled')}
+                    onClick={() => openCancelDialog(selectedOrder)}
                   >
                     ❌ Cancel Order
                   </button>
@@ -605,6 +659,15 @@ const WorkOrdersPage = () => {
           </div>
         </div>
       )}
+
+      <BookingCancelDialog
+        isOpen={Boolean(cancelTarget)}
+        title="Cancel Work Order"
+        message="Enter a cancellation reason. This will be visible to the customer, admin, and your own order history."
+        confirmLabel="Cancel Order"
+        onClose={() => setCancelTarget(null)}
+        onConfirm={(reason) => handleStatusUpdate(cancelTarget?._id, 'cancelled', reason)}
+      />
     </div>
   );
 };

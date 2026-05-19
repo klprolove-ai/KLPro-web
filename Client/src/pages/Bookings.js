@@ -4,6 +4,7 @@ import API_BASE_URL from '../config/apiConfig';
 import { getSocket } from '../api/socket';
 import { useCall } from '../context/CallContext';
 import PaymentIntegration from '../components/Payment/PaymentIntegration';
+import BookingCancelDialog from '../components/BookingCancelDialog';
 import './Bookings.css';
 
 const isObjectId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ''));
@@ -107,6 +108,7 @@ function Bookings() {
   const bookingAudioUnlockedRef = useRef(false);
   const pendingBookingSoundRef = useRef(false);
   const [pendingPaymentBooking, setPendingPaymentBooking] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
 
   const playBeep = useCallback(() => {
     try {
@@ -518,9 +520,15 @@ function Bookings() {
 
   const submitButtonLabel = formData.paymentMethod === 'razorpay' ? 'Confirm & Pay Securely' : 'Confirm Booking';
 
-  const handleCancelBooking = async (bookingId) => {
+  const handleCancelBooking = async (bookingId, reason) => {
     if (!token) {
       setError('Please login to cancel a booking.');
+      return;
+    }
+
+    const cancelReason = String(reason || '').trim();
+    if (!cancelReason) {
+      setError('Please provide a reason for cancellation.');
       return;
     }
 
@@ -531,6 +539,7 @@ function Bookings() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ reason: cancelReason }),
       });
 
       if (!response.ok) {
@@ -539,6 +548,7 @@ function Bookings() {
       }
 
       setSuccessMessage('Booking cancelled successfully.');
+      setCancelTarget(null);
       await refreshBookings();
     } catch (cancelError) {
       console.error('Booking cancel error:', cancelError);
@@ -546,17 +556,34 @@ function Bookings() {
     }
   };
 
+  const openCancelDialog = (booking) => {
+    setError('');
+    setCancelTarget(booking);
+  };
+
   const handleRebook = (booking) => {
-    setFormData((current) => ({
-      ...current,
-      professionalId: String(booking?.professionalId?._id || booking?.professionalId || ''),
-      serviceId: String(booking?.serviceId?._id || booking?.serviceId || ''),
-      scheduledDate: formatDateInput(new Date()),
-      scheduledTime: booking?.scheduledTime || current.scheduledTime,
-      price: String(booking?.price || current.price || ''),
-      notes: '',
-    }));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const professionalId = String(booking?.professionalId?._id || booking?.professionalId || '');
+
+    if (!professionalId) {
+      setError('Unable to rebook this appointment because the professional is missing.');
+      return;
+    }
+
+    localStorage.setItem(
+      'bookingDraft',
+      JSON.stringify({
+        professionalId,
+        professionalName: getProfessionalName(booking.professionalId),
+        serviceId: String(booking?.serviceId?._id || booking?.serviceId || ''),
+        serviceName: booking?.serviceId?.name || '',
+        scheduledDate: booking?.scheduledDate ? formatDateInput(new Date(booking.scheduledDate)) : formatDateInput(new Date()),
+        scheduledTime: booking?.scheduledTime || '',
+        selectedSlot: booking?.scheduledTime || '',
+        expectedPrice: booking?.price || '',
+      })
+    );
+
+    navigate(`/professionals/${professionalId}`);
   };
 
   const handleBookingAudioCall = async (bookingId) => {
@@ -795,6 +822,15 @@ function Bookings() {
             />
           </div>
         )}
+
+        <BookingCancelDialog
+          isOpen={Boolean(cancelTarget)}
+          title="Cancel Booking"
+          message="Please share a cancellation reason. This will be visible to the professional and admin."
+          confirmLabel="Cancel Booking"
+          onClose={() => setCancelTarget(null)}
+          onConfirm={(reason) => handleCancelBooking(cancelTarget?._id, reason)}
+        />
       </section>
 
       <section className="booking-history-section">
@@ -826,7 +862,7 @@ function Bookings() {
                   <p><strong>Amount:</strong> INR {booking.price}</p>
                   {booking.startOtp && <p><strong>Start OTP:</strong> {booking.startOtp}</p>}
                   {booking.completionOtpIssuedAt && <p><strong>Final OTP:</strong> {booking.completionOtp}</p>}
-                  {getProfessionalLocation(booking.professionalId) && (
+                  {['pending', 'confirmed', 'in-progress'].includes(String(booking.status || '')) && getProfessionalLocation(booking.professionalId) && (
                     <>
                       <p>
                         <strong>Live Location:</strong>{' '}
@@ -844,6 +880,12 @@ function Bookings() {
                         />
                       </div>
                     </>
+                  )}
+                  {booking.cancelReason && (
+                    <div style={{ marginTop: 16 }}>
+                      <h4>Cancellation Reason</h4>
+                      <p>{booking.cancelReason}</p>
+                    </div>
                   )}
                 </div>
                 <div className="booking-status">
@@ -867,7 +909,7 @@ function Bookings() {
                     <button
                       type="button"
                       className="btn-cancel"
-                      onClick={() => handleCancelBooking(booking._id)}
+                      onClick={() => openCancelDialog(booking)}
                       disabled={booking.status === 'cancelled'}
                     >
                       {booking.status === 'cancelled' ? 'Cancelled' : 'Cancel'}
