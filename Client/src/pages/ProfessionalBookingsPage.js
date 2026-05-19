@@ -126,43 +126,6 @@ const ProfessionalBookingsPage = () => {
     }
   };
 
-  const handleReschedule = async () => {
-    if (!newDate || !newTime) {
-      setError('Please select date and time');
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      await axios.patch(
-        `${API_BASE_URL}/bookings/${selectedBooking._id}/reschedule`,
-        { 
-          newDate,
-          newTime
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      // Update local state
-      setBookings(bookings.map(booking =>
-        booking._id === selectedBooking._id 
-          ? { 
-              ...booking, 
-              bookingDate: newDate,
-              bookingTime: newTime 
-            } 
-          : booking
-      ));
-      
-      setShowModal(false);
-      setSelectedBooking(null);
-      setNewDate('');
-      setNewTime('');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to reschedule booking');
-    }
-  };
-
   const openViewModal = (booking) => {
     setSelectedBooking(booking);
     setModalMode('view');
