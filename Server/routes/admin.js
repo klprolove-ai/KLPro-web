@@ -104,7 +104,7 @@ router.get('/bookings', verifyAdminToken, async (req, res) => {
         path: 'professionalId',
         populate: { path: 'userId', select: 'name email phone city' },
       })
-      .populate('serviceId', 'name category subCategory')
+      .populate('serviceId', 'name category subCategory basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer')
       .sort({ createdAt: -1 });
 
     res.json({ success: true, bookings });
@@ -179,7 +179,7 @@ router.get('/bookings/:id', verifyAdminToken, async (req, res) => {
         path: 'professionalId',
         populate: { path: 'userId', select: 'name email phone city' },
       })
-      .populate('serviceId', 'name category subCategory');
+      .populate('serviceId', 'name category subCategory basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer');
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });

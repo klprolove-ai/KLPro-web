@@ -422,6 +422,41 @@ function AdminDashboard() {
     }
   };
 
+  const handleDeductBookingCommission = async (bookingId) => {
+    if (!bookingId) return;
+
+    if (!window.confirm('Deduct this booking commission from the professional wallet now?')) {
+      return;
+    }
+
+    try {
+      setBookingActionLoadingId(bookingId);
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/admin-wallet/bookings/${bookingId}/deduct-commission`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to deduct commission');
+      }
+
+      await refreshAdminData();
+      if (selectedBooking && String(selectedBooking._id) === String(bookingId)) {
+        setSelectedBooking(data.data ? { ...selectedBooking, commissionDeductedAt: new Date().toISOString(), commissionDeductionTransactionId: data.data.transactionId } : selectedBooking);
+      }
+    } catch (bookingCommissionError) {
+      setError(bookingCommissionError.message || 'Failed to deduct commission');
+    } finally {
+      setBookingActionLoadingId(null);
+    }
+  };
+
   const fetchContacts = async () => {
     try {
       const token = localStorage.getItem('adminToken');
@@ -773,6 +808,9 @@ function AdminDashboard() {
       formData.append('subSubCategory', editingService.subSubCategory || '');
       formData.append('serviceType', editingService.serviceType || '');
       formData.append('basePrice', editingService.basePrice);
+      formData.append('commissionToKlPro', editingService.commissionToKlPro || 0);
+      formData.append('gstFromCustomer', editingService.gstFromCustomer || 0);
+      formData.append('cashPaymentPlatformChargeFromCustomer', editingService.cashPaymentPlatformChargeFromCustomer || 0);
       formData.append('estimatedDuration', editingService.estimatedDuration);
       formData.append('isActive', editingService.isActive);
       formData.append('rating', editingService.rating);
@@ -851,6 +889,9 @@ function AdminDashboard() {
       formData.append('subSubCategory', editingService.subSubCategory || '');
       formData.append('serviceType', editingService.serviceType || '');
       formData.append('basePrice', editingService.basePrice);
+      formData.append('commissionToKlPro', editingService.commissionToKlPro || 0);
+      formData.append('gstFromCustomer', editingService.gstFromCustomer || 0);
+      formData.append('cashPaymentPlatformChargeFromCustomer', editingService.cashPaymentPlatformChargeFromCustomer || 0);
       formData.append('estimatedDuration', editingService.estimatedDuration);
       
       // Log what's being sent
@@ -862,6 +903,9 @@ function AdminDashboard() {
         subSubCategory: editingService.subSubCategory,
         serviceType: editingService.serviceType,
         basePrice: editingService.basePrice,
+        commissionToKlPro: editingService.commissionToKlPro,
+        gstFromCustomer: editingService.gstFromCustomer,
+        cashPaymentPlatformChargeFromCustomer: editingService.cashPaymentPlatformChargeFromCustomer,
         estimatedDuration: editingService.estimatedDuration,
         hasImage: !!serviceImageFile
       });
@@ -1540,6 +1584,59 @@ function AdminDashboard() {
                             {selectedBooking.cancelReason && <p><strong>Cancellation Reason:</strong> {selectedBooking.cancelReason}</p>}
                             {selectedBooking.cancelledByRole && <p><strong>Cancelled By:</strong> {selectedBooking.cancelledByRole}</p>}
                             {selectedBooking.cancelledAt && <p><strong>Cancelled At:</strong> {new Date(selectedBooking.cancelledAt).toLocaleString()}</p>}
+                          </div>
+
+                          <div className="booking-audit-panel">
+                            <h4>Fee Breakdown</h4>
+                            <div className="booking-audit-list">
+                              <div className="booking-audit-item">
+                                <strong>Service Charge</strong>
+                                <span>₹{Number(selectedBooking?.feeBreakdown?.serviceChargeAmount ?? selectedBooking?.price ?? 0).toLocaleString('en-IN')}</span>
+                              </div>
+                              <div className="booking-audit-item">
+                                <strong>GST</strong>
+                                <span>
+                                  {Number(selectedBooking?.serviceId?.gstFromCustomer || 0).toLocaleString('en-IN')}% - ₹{Number(selectedBooking?.feeBreakdown?.gstAmount || 0).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              <div className="booking-audit-item">
+                                <strong>Cash Platform Charge</strong>
+                                <span>
+                                  {Number(selectedBooking?.serviceId?.cashPaymentPlatformChargeFromCustomer || 0).toLocaleString('en-IN')}% - ₹{Number(selectedBooking?.feeBreakdown?.platformChargeAmount || 0).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              <div className="booking-audit-item">
+                                <strong>Commission</strong>
+                                <span>
+                                  {Number(selectedBooking?.serviceId?.commissionToKlPro || 0).toLocaleString('en-IN')}% - ₹{Number(selectedBooking?.feeBreakdown?.commissionAmount || 0).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              <div className="booking-audit-item">
+                                <strong>Professional Payout</strong>
+                                <span>₹{Number(selectedBooking?.feeBreakdown?.professionalPayoutAmount || 0).toLocaleString('en-IN')}</span>
+                              </div>
+                              <div className="booking-audit-item">
+                                <strong>Total Amount</strong>
+                                <span>₹{Number(selectedBooking?.feeBreakdown?.totalAmount || selectedBooking?.price || 0).toLocaleString('en-IN')}</span>
+                              </div>
+                              <div className="booking-audit-item">
+                                <strong>Commission Deducted</strong>
+                                <span>{selectedBooking?.commissionDeductedAt ? `Yes, ${new Date(selectedBooking.commissionDeductedAt).toLocaleString()}` : 'No'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="booking-detail-actions">
+                            {selectedBooking?.status === 'completed' && !selectedBooking?.commissionDeductedAt && (
+                              <button
+                                type="button"
+                                className="btn-delete"
+                                disabled={bookingActionLoadingId === selectedBooking._id}
+                                onClick={() => handleDeductBookingCommission(selectedBooking._id)}
+                              >
+                                {bookingActionLoadingId === selectedBooking._id ? 'Deducting...' : 'Deduct Booking Commission'}
+                              </button>
+                            )}
                           </div>
 
                           <div className="booking-photo-grid">
@@ -2246,6 +2343,9 @@ function AdminDashboard() {
                     onChange={(e) => setEditingHomepageCard({ ...editingHomepageCard, section: e.target.value })}
                   >
                     <option value="explore-popular-categories">Explore Popular Categories</option>
+                    <option value="home-decoration">Home Decoration</option>
+                    <option value="property-services">Property Services</option>
+                    <option value="snap-click">Snap Click</option>
                     <option value="salon-for-women">Salon for Women</option>
                     <option value="cleaning-essentials">Cleaning Essentials</option>
                     <option value="grooming-for-men">Grooming for Men</option>

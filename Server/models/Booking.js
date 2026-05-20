@@ -49,7 +49,7 @@ const bookingSchema = new mongoose.Schema(
     },
     cancelledByRole: {
       type: String,
-      enum: ['customer', 'professional', 'admin', 'system'],
+      enum: ['', 'customer', 'professional', 'admin', 'system'],
       default: '',
     },
     cancelledAt: {
@@ -119,6 +119,45 @@ const bookingSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
       enum: ['cash', 'card', 'upi', 'wallet', 'razorpay'],
+    },
+    feeBreakdown: {
+      serviceChargeAmount: {
+        type: Number,
+        default: 0,
+      },
+      gstAmount: {
+        type: Number,
+        default: 0,
+      },
+      platformChargeAmount: {
+        type: Number,
+        default: 0,
+      },
+      commissionAmount: {
+        type: Number,
+        default: 0,
+      },
+      professionalPayoutAmount: {
+        type: Number,
+        default: 0,
+      },
+      totalAmount: {
+        type: Number,
+        default: 0,
+      },
+    },
+    commissionDeductedAt: {
+      type: Date,
+      default: null,
+    },
+    commissionDeductedBy: {
+      type: String,
+      default: '',
+    },
+    commissionDeductionTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Transaction',
+      default: null,
     },
     auditLogs: [
       {

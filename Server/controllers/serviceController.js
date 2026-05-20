@@ -3,6 +3,15 @@ const cloudinary = require('../config/cloudinary');
 const csv = require('csv-parser');
 const xlsx = require('xlsx');
 
+const parseOptionalNumber = (value, fallback = 0) => {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 // Helper function to upload image to Cloudinary
 const uploadImageToCloudinary = (fileBuffer) => {
   return new Promise((resolve, reject) => {
@@ -90,7 +99,19 @@ const createService = async (req, res) => {
     console.log('req.file:', req.file ? { filename: req.file.filename, mimetype: req.file.mimetype, size: req.file.size } : 'No file');
     console.log('req.headers:', req.headers);
     
-    const { name, description, category, subCategory, subSubCategory, serviceType, basePrice, estimatedDuration } = req.body;
+    const {
+      name,
+      description,
+      category,
+      subCategory,
+      subSubCategory,
+      serviceType,
+      basePrice,
+      estimatedDuration,
+      commissionToKlPro,
+      gstFromCustomer,
+      cashPaymentPlatformChargeFromCustomer,
+    } = req.body;
     
     console.log('Extracted values:', { name, description, category, basePrice, estimatedDuration });
     console.log('Types:', { 
@@ -152,6 +173,9 @@ const createService = async (req, res) => {
       subSubCategory: subSubCategory || '',
       serviceType: serviceType || '',
       basePrice: parsedBasePrice,
+      commissionToKlPro: parseOptionalNumber(commissionToKlPro),
+      gstFromCustomer: parseOptionalNumber(gstFromCustomer),
+      cashPaymentPlatformChargeFromCustomer: parseOptionalNumber(cashPaymentPlatformChargeFromCustomer),
       estimatedDuration: parsedDuration,
       image: imageUrl
     });
@@ -185,6 +209,9 @@ const updateService = async (req, res) => {
       serviceType,
       basePrice,
       estimatedDuration,
+      commissionToKlPro,
+      gstFromCustomer,
+      cashPaymentPlatformChargeFromCustomer,
       isActive,
       rating,
       reviewCount,
@@ -205,11 +232,20 @@ const updateService = async (req, res) => {
     const parsedDuration = estimatedDuration ? Number(estimatedDuration) : existingService.estimatedDuration;
     const parsedRating = rating ? Number(rating) : existingService.rating;
     const parsedReviewCount = reviewCount ? Number(reviewCount) : existingService.reviewCount;
+    const parsedCommissionToKlPro = commissionToKlPro === undefined || commissionToKlPro === ''
+      ? existingService.commissionToKlPro
+      : Number(commissionToKlPro);
+    const parsedGstFromCustomer = gstFromCustomer === undefined || gstFromCustomer === ''
+      ? existingService.gstFromCustomer
+      : Number(gstFromCustomer);
+    const parsedCashPaymentPlatformChargeFromCustomer = cashPaymentPlatformChargeFromCustomer === undefined || cashPaymentPlatformChargeFromCustomer === ''
+      ? existingService.cashPaymentPlatformChargeFromCustomer
+      : Number(cashPaymentPlatformChargeFromCustomer);
 
-    if (isNaN(parsedBasePrice) || isNaN(parsedDuration)) {
+    if (isNaN(parsedBasePrice) || isNaN(parsedDuration) || isNaN(parsedCommissionToKlPro) || isNaN(parsedGstFromCustomer) || isNaN(parsedCashPaymentPlatformChargeFromCustomer)) {
       return res.status(400).json({
         success: false,
-        message: 'basePrice and estimatedDuration must be valid numbers'
+        message: 'Service price fields must be valid numbers'
       });
     }
 
@@ -240,6 +276,9 @@ const updateService = async (req, res) => {
         serviceType: serviceType || '',
         basePrice: parsedBasePrice,
         estimatedDuration: parsedDuration,
+        commissionToKlPro: parsedCommissionToKlPro,
+        gstFromCustomer: parsedGstFromCustomer,
+        cashPaymentPlatformChargeFromCustomer: parsedCashPaymentPlatformChargeFromCustomer,
         image: imageUrl,
         isActive,
         rating: parsedRating,
@@ -477,6 +516,9 @@ const bulkUploadServices = async (req, res) => {
         const category = row.category?.toString().trim();
         const basePrice = row.basePrice || row.price;
         const estimatedDuration = row.estimatedDuration || row.duration;
+        const commissionToKlPro = row.commissionToKlPro || row.commission || 0;
+        const gstFromCustomer = row.gstFromCustomer || row.gst || 0;
+        const cashPaymentPlatformChargeFromCustomer = row.cashPaymentPlatformChargeFromCustomer || row.cashPlatformCharge || 0;
 
         if (!name || !description || !category) {
           results.errors.push(`Row ${rowNumber}: Missing required fields (name, description, category)`);
@@ -486,6 +528,9 @@ const bulkUploadServices = async (req, res) => {
         // Validate and parse numeric fields
         const parsedPrice = parseFloat(basePrice);
         const parsedDuration = parseInt(estimatedDuration);
+        const parsedCommissionToKlPro = parseOptionalNumber(commissionToKlPro);
+        const parsedGstFromCustomer = parseOptionalNumber(gstFromCustomer);
+        const parsedCashPaymentPlatformChargeFromCustomer = parseOptionalNumber(cashPaymentPlatformChargeFromCustomer);
 
         if (isNaN(parsedPrice) || parsedPrice < 0) {
           results.errors.push(`Row ${rowNumber}: Invalid base price "${basePrice}"`);
@@ -513,6 +558,9 @@ const bulkUploadServices = async (req, res) => {
           subSubCategory: row.subSubCategory?.toString().trim() || '',
           serviceType: row.serviceType?.toString().trim() || '',
           basePrice: parsedPrice,
+          commissionToKlPro: parsedCommissionToKlPro,
+          gstFromCustomer: parsedGstFromCustomer,
+          cashPaymentPlatformChargeFromCustomer: parsedCashPaymentPlatformChargeFromCustomer,
           estimatedDuration: parsedDuration,
           isActive: true
         });

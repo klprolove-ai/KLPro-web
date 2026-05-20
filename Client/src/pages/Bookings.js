@@ -70,6 +70,74 @@ const buildMapEmbedUrl = (latitude, longitude) => {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}&layer=mapnik&marker=${lat}%2C${lng}`;
 };
 
+const escapeCsvValue = (value) => {
+  const text = String(value ?? '');
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+const escapePdfText = (value) => String(value ?? '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+
+const buildSimplePdfBlob = (title, rows) => {
+  const leftMargin = 48;
+  const topStart = 790;
+
+  const contentStream = [
+    'BT',
+    '/F1 18 Tf',
+    `${leftMargin} ${topStart} Td`,
+    `(${escapePdfText(title)}) Tj`,
+    '/F1 11 Tf',
+    ...rows.flatMap((row) => {
+      const rowText = Array.isArray(row) ? `${row[0]}: ${row[1]}` : String(row || '');
+      return [`T* (${escapePdfText(rowText)}) Tj`];
+    }),
+    'ET',
+  ].join('\n');
+
+  const contentLength = new TextEncoder().encode(contentStream).length;
+
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${contentLength} >>\nstream\n${contentStream}\nendstream`,
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= objects.length; i += 1) {
+    pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: 'application/pdf' });
+};
+
+const downloadBlob = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+const downloadCsvFile = (filename, rows) => {
+  const csvContent = rows.map((row) => row.map(escapeCsvValue).join(',')).join('\n');
+  downloadBlob(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }), filename);
+};
+
 const paymentOptions = [
   {
     value: 'razorpay',
@@ -172,6 +240,29 @@ function Bookings() {
     [services, formData.serviceId]
   );
 
+  const bookingPricing = useMemo(() => {
+    const serviceCharge = Number(selectedService?.basePrice) || 0;
+    const gstPercentage = Number(selectedService?.gstFromCustomer) || 0;
+    const platformPercentage = formData.paymentMethod === 'cash'
+      ? Number(selectedService?.cashPaymentPlatformChargeFromCustomer) || 0
+      : 0;
+    const commissionPercentage = Number(selectedService?.commissionToKlPro) || 0;
+    const gstAmount = Math.round((serviceCharge * gstPercentage) / 100);
+    const platformCharge = Math.round((serviceCharge * platformPercentage) / 100);
+    const commissionAmount = Math.round((serviceCharge * commissionPercentage) / 100);
+
+    return {
+      serviceCharge,
+      gstAmount,
+      platformCharge,
+      commissionAmount,
+      gstPercentage,
+      platformPercentage,
+      commissionPercentage,
+      totalAmount: serviceCharge + gstAmount + platformCharge,
+    };
+  }, [selectedService, formData.paymentMethod]);
+
   const draftData = useMemo(() => {
     try {
       const draft = localStorage.getItem('bookingDraft');
@@ -271,9 +362,7 @@ function Bookings() {
           return haystack.includes((draftData.professionalName || '').toLowerCase());
         });
 
-      const fallbackService = services[0];
-
-      const nextServiceId = current.serviceId || matchedService?._id || fallbackService?._id || '';
+      const nextServiceId = current.serviceId || matchedService?._id || '';
 
       return {
         ...current,
@@ -292,9 +381,9 @@ function Bookings() {
     if (!selectedService) return;
     setFormData((current) => ({
       ...current,
-      price: String(selectedService.basePrice || current.price || ''),
+      price: String(bookingPricing.totalAmount || current.price || ''),
     }));
-  }, [selectedService]);
+  }, [bookingPricing.totalAmount, selectedService]);
 
   useEffect(() => {
     const unlockEvents = ['pointerdown', 'keydown', 'touchstart'];
@@ -441,6 +530,11 @@ function Bookings() {
       return;
     }
 
+    if (!selectedService) {
+      setError('Please select a service to continue.');
+      return;
+    }
+
     const parsedPrice = Number(formData.price);
     if (!parsedPrice || parsedPrice <= 0) {
       setError('Please provide a valid booking amount.');
@@ -519,6 +613,44 @@ function Bookings() {
   };
 
   const submitButtonLabel = formData.paymentMethod === 'razorpay' ? 'Confirm & Pay Securely' : 'Confirm Booking';
+
+  const handleDownloadBookingCsv = (booking) => {
+    const professionalName = getProfessionalName(booking.professionalId);
+    const professionalUser = booking?.professionalId?.userId || {};
+    const rows = [
+      ['Field', 'Value'],
+      ['Booking ID', booking._id],
+      ['Professional Name', professionalName],
+      ['Professional Email', professionalUser.email || ''],
+      ['Professional Phone', professionalUser.phone || ''],
+      ['Service', booking?.serviceId?.name || ''],
+      ['Date', booking.scheduledDate ? new Date(booking.scheduledDate).toLocaleDateString() : ''],
+      ['Time', booking.scheduledTime || ''],
+      ['Amount (INR)', booking.price || ''],
+      ['Status', booking.status || ''],
+    ];
+
+    downloadCsvFile(`booking-${booking._id}-professional.csv`, rows);
+  };
+
+  const handleDownloadBookingPdf = (booking) => {
+    const professionalName = getProfessionalName(booking.professionalId);
+    const professionalUser = booking?.professionalId?.userId || {};
+    const rows = [
+      ['Booking ID', booking._id],
+      ['Professional Name', professionalName],
+      ['Professional Email', professionalUser.email || ''],
+      ['Professional Phone', professionalUser.phone || ''],
+      ['Service', booking?.serviceId?.name || ''],
+      ['Date', booking.scheduledDate ? new Date(booking.scheduledDate).toLocaleDateString() : ''],
+      ['Time', booking.scheduledTime || ''],
+      ['Amount (INR)', booking.price || ''],
+      ['Status', booking.status || ''],
+    ];
+
+    const pdfBlob = buildSimplePdfBlob('KLPro Completed Booking Summary', rows);
+    downloadBlob(pdfBlob, `booking-${booking._id}-professional.pdf`);
+  };
 
   const handleCancelBooking = async (bookingId, reason) => {
     if (!token) {
@@ -693,10 +825,38 @@ function Bookings() {
                 name="price"
                 min="1"
                 value={formData.price}
-                onChange={handleInputChange}
+                readOnly
                 required
               />
             </label>
+
+            <div className="full-width booking-breakdown-card">
+              <h3>Amount Breakdown</h3>
+              {selectedService ? (
+                <div className="booking-breakdown-list">
+                  <div className="booking-breakdown-row">
+                    <span className="breakdown-label">Service Charge</span>
+                    <strong className="breakdown-value">INR {bookingPricing.serviceCharge.toLocaleString('en-IN')}</strong>
+                  </div>
+                  <div className="booking-breakdown-row">
+                    <span className="breakdown-label">GST TAX <small>({bookingPricing.gstPercentage || 0}%)</small></span>
+                    <strong className="breakdown-value">INR {bookingPricing.gstAmount.toLocaleString('en-IN')}</strong>
+                  </div>
+                  {formData.paymentMethod === 'cash' && (
+                    <div className="booking-breakdown-row">
+                      <span className="breakdown-label">Platform Charge <small>({bookingPricing.platformPercentage || 0}%)</small></span>
+                      <strong className="breakdown-value">INR {bookingPricing.platformCharge.toLocaleString('en-IN')}</strong>
+                    </div>
+                  )}
+                  <div className="booking-breakdown-row">
+                    <span className="breakdown-label">Total Amount</span>
+                    <strong className="breakdown-value">INR {bookingPricing.totalAmount.toLocaleString('en-IN')}</strong>
+                  </div>
+                </div>
+              ) : (
+                <p>Select a service to see the final amount.</p>
+              )}
+            </div>
 
             <section className="payment-method-section full-width">
               <div className="payment-method-header">
@@ -906,6 +1066,16 @@ function Bookings() {
                     <button type="button" className="btn-reschedule" onClick={() => handleRebook(booking)}>
                       Rebook
                     </button>
+                    {String(booking.status || '') === 'completed' && (
+                      <>
+                        <button type="button" className="btn-reschedule" onClick={() => handleDownloadBookingPdf(booking)}>
+                          Download PDF
+                        </button>
+                        <button type="button" className="btn-reschedule" onClick={() => handleDownloadBookingCsv(booking)}>
+                          Download CSV
+                        </button>
+                      </>
+                    )}
                     <button
                       type="button"
                       className="btn-cancel"

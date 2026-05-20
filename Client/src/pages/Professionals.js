@@ -668,7 +668,7 @@ function Professionals() {
   }, [bookingHistory.length, filteredProfessionals]);
 
   const handleCardClick = (professional) => {
-    navigate(`/professionals/${professional.id}`, {
+    navigate(`/professionals/${professional.id}${location.search || ''}`, {
       state: { professional },
     });
   };

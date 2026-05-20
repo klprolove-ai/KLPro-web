@@ -286,6 +286,114 @@ exports.debitProfessionalWallet = async (req, res) => {
   }
 };
 
+exports.deductBookingCommission = async (req, res) => {
+  try {
+    const adminId = req.user._id;
+    const { bookingId } = req.params;
+
+    const booking = await Booking.findById(bookingId)
+      .populate('professionalId', 'userId')
+      .populate('serviceId', 'commissionToKlPro');
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (String(booking.status || '') !== 'completed') {
+      return res.status(400).json({ message: 'Commission can only be deducted after completion' });
+    }
+
+    if (booking.commissionDeductedAt) {
+      return res.status(400).json({ message: 'Commission already deducted for this booking' });
+    }
+
+    const commissionAmount = Number(booking?.feeBreakdown?.commissionAmount || 0)
+      || Math.round((Number(booking.price) || 0) * (Number(booking?.serviceId?.commissionToKlPro || 0) / 100));
+
+    if (commissionAmount <= 0) {
+      return res.status(400).json({ message: 'No commission amount available to deduct' });
+    }
+
+    const professional = await Professional.findById(booking.professionalId?._id || booking.professionalId);
+    if (!professional) {
+      return res.status(404).json({ message: 'Professional not found' });
+    }
+
+    const wallet = await ProfessionalWallet.findOne({ professionalId: professional._id });
+    if (!wallet) {
+      return res.status(404).json({ message: 'Professional wallet not found' });
+    }
+
+    if (wallet.currentBalance < commissionAmount) {
+      return res.status(400).json({
+        message: 'Insufficient wallet balance to deduct commission',
+        currentBalance: wallet.currentBalance,
+        requestedAmount: commissionAmount,
+      });
+    }
+
+    let adminWallet = await AdminWallet.findOne({ adminId });
+    if (!adminWallet) {
+      adminWallet = new AdminWallet({ adminId });
+      await adminWallet.save();
+    }
+
+    const transaction = new Transaction({
+      walletId: wallet._id,
+      professionalId: professional._id,
+      userId: wallet.userId,
+      type: 'commission_deducted',
+      amount: commissionAmount,
+      status: 'completed',
+      description: `Commission deducted for booking #${booking._id}`,
+      referenceType: 'booking',
+      referenceId: booking._id,
+      adminId,
+      adminNotes: 'Automatic commission deduction from booking payout',
+      balanceBefore: wallet.currentBalance,
+      balanceAfter: wallet.currentBalance - commissionAmount,
+      completedAt: new Date(),
+      commissionDetails: {
+        commissionAmount,
+        commissionPercentage: booking?.serviceId?.commissionToKlPro || 0,
+      },
+    });
+
+    await transaction.save();
+
+    wallet.currentBalance -= commissionAmount;
+    wallet.totalCommissionPaid += commissionAmount;
+    wallet.lastTransaction = transaction._id;
+    await wallet.save();
+
+    adminWallet.totalBalance += commissionAmount;
+    adminWallet.totalCommissionReceived += commissionAmount;
+    adminWallet.lastTransactionId = transaction._id;
+    adminWallet.lastBalanceUpdate = new Date();
+    await adminWallet.save();
+
+    booking.commissionDeductedAt = new Date();
+    booking.commissionDeductedBy = String(req.user?.email || 'admin');
+    booking.commissionDeductionTransactionId = transaction._id;
+    await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Commission deducted from professional wallet',
+      data: {
+        bookingId: booking._id,
+        commissionAmount,
+        newProfessionalBalance: wallet.currentBalance,
+        adminBalance: adminWallet.totalBalance,
+        transactionId: transaction._id,
+      },
+    });
+  } catch (error) {
+    console.error('Error deducting booking commission:', error);
+    res.status(500).json({ message: 'Error deducting booking commission', error: error.message });
+  }
+};
+
 // Suspend/Freeze professional wallet (admin)
 exports.suspendProfessionalWallet = async (req, res) => {
   try {

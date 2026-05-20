@@ -11,6 +11,7 @@ router.get('/commission-report', auth, requireRole('admin'), adminWalletControll
 router.get('/professional-earnings', auth, requireRole('admin'), adminWalletController.getProfessionalEarnings);
 router.post('/credit-wallet', auth, requireRole('admin'), adminWalletController.creditProfessionalWallet);
 router.post('/debit-wallet', auth, requireRole('admin'), adminWalletController.debitProfessionalWallet);
+router.post('/bookings/:bookingId/deduct-commission', auth, requireRole('admin'), adminWalletController.deductBookingCommission);
 
 // Wallet suspension/reactivation
 router.post('/suspend-wallet', auth, requireRole('admin'), adminWalletController.suspendProfessionalWallet);

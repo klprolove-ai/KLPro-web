@@ -140,6 +140,9 @@ function AdminServicesSection({
                 subSubCategory: '',
                 serviceType: '',
                 basePrice: 0,
+                commissionToKlPro: 0,
+                gstFromCustomer: 0,
+                cashPaymentPlatformChargeFromCustomer: 0,
                 estimatedDuration: 30,
                 image: '',
                 isActive: true
@@ -260,6 +263,36 @@ function AdminServicesSection({
                   />
                 </div>
                 <div className="form-group">
+                  <label>Commission To KLPro (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editingService.commissionToKlPro ?? 0}
+                    onChange={(e) => setEditingService({...editingService, commissionToKlPro: Number(e.target.value)})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>GST From Customer (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editingService.gstFromCustomer ?? 0}
+                    onChange={(e) => setEditingService({...editingService, gstFromCustomer: Number(e.target.value)})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Cash Payment Platform Charge (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editingService.cashPaymentPlatformChargeFromCustomer ?? 0}
+                    onChange={(e) => setEditingService({...editingService, cashPaymentPlatformChargeFromCustomer: Number(e.target.value)})}
+                  />
+                </div>
+                <div className="form-group">
                   <label>Duration (minutes)</label>
                   <input
                     type="number"
@@ -335,6 +368,18 @@ function AdminServicesSection({
               <div className="detail-row">
                 <span className="label">Price:</span>
                 <span>₹{selectedService.basePrice}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Commission To KLPro:</span>
+                <span>{selectedService.commissionToKlPro || 0}%</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">GST From Customer:</span>
+                <span>{selectedService.gstFromCustomer || 0}%</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Cash Platform Charge:</span>
+                <span>{selectedService.cashPaymentPlatformChargeFromCustomer || 0}%</span>
               </div>
               <div className="detail-row">
                 <span className="label">Duration:</span>
@@ -529,6 +574,9 @@ function AdminServicesSection({
                 <th>Service Type</th>
                 <th>Price</th>
                 <th>Duration</th>
+                <th>GST</th>
+                <th>Commission To KLPro</th>
+                <th>Cash Payment Platform Charge</th>
                 <th>Status</th>
                 <th>Most Booked</th>
                 <th>Rating</th>
@@ -546,6 +594,9 @@ function AdminServicesSection({
                     <td>{service.serviceType || '-'}</td>
                     <td>₹{service.basePrice}</td>
                     <td>{service.estimatedDuration} min</td>
+                    <td>{service.gstFromCustomer || 0}%</td>
+                    <td>{service.commissionToKlPro || 0}%</td>
+                    <td>{service.cashPaymentPlatformChargeFromCustomer || 0}%</td>
                     <td>{service.isActive ? '✓ Active' : '✗ Inactive'}</td>
                     <td>
                       <button 
@@ -575,7 +626,7 @@ function AdminServicesSection({
                 ))
               ) : (
                 <tr>
-                  <td colSpan="11" className="text-center">No services found</td>
+                  <td colSpan="14" className="text-center">No services found</td>
                 </tr>
               )}
             </tbody>
@@ -604,6 +655,9 @@ function AdminServicesSection({
                   <li><strong>serviceType</strong> - Service type (optional)</li>
                   <li><strong>basePrice</strong> - Price in rupees (required)</li>
                   <li><strong>estimatedDuration</strong> - Duration in minutes (required)</li>
+                  <li><strong>commissionToKlPro</strong> - Commission to KLPro in percentage (optional)</li>
+                  <li><strong>gstFromCustomer</strong> - GST charged to customer in percentage (optional)</li>
+                  <li><strong>cashPaymentPlatformChargeFromCustomer</strong> - Cash payment platform charge in percentage (optional)</li>
                 </ul>
                 <p><strong>Note:</strong> Image uploads are not supported in bulk upload. You can add images individually after upload.</p>
               </div>

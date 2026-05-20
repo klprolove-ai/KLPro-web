@@ -41,6 +41,8 @@ function ServiceDetails() {
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const viewerType = user?.userType || (localStorage.getItem('adminToken') ? 'admin' : 'customer');
+  const canViewInternalCharges = viewerType === 'admin' || viewerType === 'professional';
 
   const unwrapResponse = (response) => response?.data ?? response;
 
@@ -119,15 +121,25 @@ function ServiceDetails() {
   const serviceMeta = useMemo(() => {
     if (!service) return [];
 
-    return [
+    const meta = [
       { label: 'Category', value: service.category || '—' },
       { label: 'Subcategory', value: service.subCategory || '—' },
       { label: 'Sub-subcategory', value: service.subSubCategory || '—' },
       { label: 'Service Type', value: service.serviceType || '—' },
       { label: 'Duration', value: `${service.estimatedDuration || 0} min` },
       { label: 'Reviews', value: `${service.reviewCount || 0}` },
+      { label: 'GST From Customer', value: `${Number(service.gstFromCustomer || 0).toLocaleString('en-IN')}%` },
     ];
-  }, [service]);
+
+    if (canViewInternalCharges) {
+      meta.push(
+        { label: 'Commission To KLPro', value: `${Number(service.commissionToKlPro || 0).toLocaleString('en-IN')}%` },
+        { label: 'Cash Payment Platform Charge', value: `${Number(service.cashPaymentPlatformChargeFromCustomer || 0).toLocaleString('en-IN')}%` }
+      );
+    }
+
+    return meta;
+  }, [canViewInternalCharges, service]);
 
   const handleBookNow = () => {
     if (!service) return;

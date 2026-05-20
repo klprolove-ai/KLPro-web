@@ -5,7 +5,15 @@ const homepageCardSchema = new mongoose.Schema(
     section: {
       type: String,
       required: true,
-      enum: ['explore-popular-categories', 'salon-for-women', 'cleaning-essentials', 'grooming-for-men'],
+      enum: [
+        'explore-popular-categories',
+        'salon-for-women',
+        'cleaning-essentials',
+        'grooming-for-men',
+        'home-decoration',
+        'property-services',
+        'snap-click',
+      ],
     },
     title: {
       type: String,

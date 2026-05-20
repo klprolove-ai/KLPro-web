@@ -16,6 +16,9 @@ const PROFESSIONAL_FOCUS_KEYWORDS = {
   'salon for women': 'salon-for-women',
   'cleaning essentials': 'cleaning-essentials',
   'grooming for men': 'grooming-for-men',
+  'home decoration': 'home-decoration',
+  'property services': 'property-services',
+  'snap click': 'snap-click',
 };
 
 const buildProfessionalsPath = (params) => {
@@ -38,8 +41,20 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const categoriesShellRef = useRef(null);
   const categoriesTrackRef = useRef(null);
+  const homeDecorShellRef = useRef(null);
+  const homeDecorTrackRef = useRef(null);
+  const propertyServicesShellRef = useRef(null);
+  const propertyServicesTrackRef = useRef(null);
+  const snapClickShellRef = useRef(null);
+  const snapClickTrackRef = useRef(null);
   const salonShellRef = useRef(null);
   const salonTrackRef = useRef(null);
+  const mostBookedShellRef = useRef(null);
+  const mostBookedTrackRef = useRef(null);
+  const cleaningShellRef = useRef(null);
+  const cleaningTrackRef = useRef(null);
+  const groomingShellRef = useRef(null);
+  const groomingTrackRef = useRef(null);
   useEffect(() => {
     fetchMostBookedServices();
     fetchHomepageCards();
@@ -112,6 +127,12 @@ function Home() {
     { id: 6, name: 'Home Cleaning', image: '/C.png', time: '90 mins' },
   ];
 
+  const homeDecorationCategories = [
+    { id: 1, name: 'Home Decoration', image: '/C.png', time: '60 mins' },
+    { id: 2, name: 'Property Services', image: '/HS.png', time: '75 mins' },
+    { id: 3, name: 'Snap Click', image: '/M.png', time: '30 mins' },
+  ];
+
   const categoryServices = [
     {
       title: 'Salon for Women',
@@ -141,6 +162,33 @@ function Home() {
         time: card.time || '45 mins',
       }))
     : quickCategories;
+
+  const dynamicHomeDecorationCategories = homepageSections?.['home-decoration']?.length
+    ? homepageSections['home-decoration'].map((card, index) => ({
+        id: card._id || index,
+        name: card.title,
+        image: card.image || '/C.png',
+        time: card.time || '45 mins',
+      }))
+    : [homeDecorationCategories[0]];
+
+  const dynamicPropertyServicesCategories = homepageSections?.['property-services']?.length
+    ? homepageSections['property-services'].map((card, index) => ({
+        id: card._id || index,
+        name: card.title,
+        image: card.image || '/HS.png',
+        time: card.time || '45 mins',
+      }))
+    : [homeDecorationCategories[1]];
+
+  const dynamicSnapClickCategories = homepageSections?.['snap-click']?.length
+    ? homepageSections['snap-click'].map((card, index) => ({
+        id: card._id || index,
+        name: card.title,
+        image: card.image || '/M.png',
+        time: card.time || '45 mins',
+      }))
+    : [homeDecorationCategories[2]];
 
   const dynamicCategoryServices = [
     {
@@ -299,6 +347,87 @@ function Home() {
         </div>
       </section>
 
+      <section className="quick-categories">
+        <div className="container">
+          <div className="section-header-block">
+            <h2>Home Decoration</h2>
+            <p>Fast browse-and-book flow for home styling and setup services.</p>
+          </div>
+          <div className="categories-carousel-shell">
+            <div className="carousel-nav-holder">
+              <button aria-label="Scroll home decoration left" className="carousel-nav left" onClick={() => scrollShell(homeDecorShellRef, homeDecorTrackRef, -320)} type="button">‹</button>
+              <button aria-label="Scroll home decoration right" className="carousel-nav right" onClick={() => scrollShell(homeDecorShellRef, homeDecorTrackRef, 320)} type="button">›</button>
+            </div>
+            <div ref={homeDecorShellRef} className="categories-scroll-shell">
+              <div ref={homeDecorTrackRef} className="categories-track auto-scroll-ltr">
+                {[...dynamicHomeDecorationCategories, ...dynamicHomeDecorationCategories].map((cat, idx) => (
+                  <div key={`${cat.id}-${idx}`} className="quick-card" aria-hidden={idx >= dynamicHomeDecorationCategories.length}>
+                    <div className="quick-image"><img src={cat.image} alt={cat.name} /></div>
+                    <h3>{cat.name}</h3>
+                    <p className="quick-time">⏱️ {cat.time}</p>
+                    <button className="quick-btn" type="button" onClick={() => goToProfessionals({ focus: 'home-decoration', service: cat.name })}>Book</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="quick-categories">
+        <div className="container">
+          <div className="section-header-block">
+            <h2>Property Services</h2>
+            <p>Quick booking for property support, inspections, and related help.</p>
+          </div>
+          <div className="categories-carousel-shell">
+            <div className="carousel-nav-holder">
+              <button aria-label="Scroll property services left" className="carousel-nav left" onClick={() => scrollShell(propertyServicesShellRef, propertyServicesTrackRef, -320)} type="button">‹</button>
+              <button aria-label="Scroll property services right" className="carousel-nav right" onClick={() => scrollShell(propertyServicesShellRef, propertyServicesTrackRef, 320)} type="button">›</button>
+            </div>
+            <div ref={propertyServicesShellRef} className="categories-scroll-shell">
+              <div ref={propertyServicesTrackRef} className="categories-track auto-scroll-ltr">
+                {[...dynamicPropertyServicesCategories, ...dynamicPropertyServicesCategories].map((cat, idx) => (
+                  <div key={`${cat.id}-${idx}`} className="quick-card" aria-hidden={idx >= dynamicPropertyServicesCategories.length}>
+                    <div className="quick-image"><img src={cat.image} alt={cat.name} /></div>
+                    <h3>{cat.name}</h3>
+                    <p className="quick-time">⏱️ {cat.time}</p>
+                    <button className="quick-btn" type="button" onClick={() => goToProfessionals({ focus: 'property-services', service: cat.name })}>Book</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="quick-categories">
+        <div className="container">
+          <div className="section-header-block">
+            <h2>Snap Click</h2>
+            <p>Capture moments or content with the same carousel browsing experience.</p>
+          </div>
+          <div className="categories-carousel-shell">
+            <div className="carousel-nav-holder">
+              <button aria-label="Scroll snap click left" className="carousel-nav left" onClick={() => scrollShell(snapClickShellRef, snapClickTrackRef, -320)} type="button">‹</button>
+              <button aria-label="Scroll snap click right" className="carousel-nav right" onClick={() => scrollShell(snapClickShellRef, snapClickTrackRef, 320)} type="button">›</button>
+            </div>
+            <div ref={snapClickShellRef} className="categories-scroll-shell">
+              <div ref={snapClickTrackRef} className="categories-track auto-scroll-ltr">
+                {[...dynamicSnapClickCategories, ...dynamicSnapClickCategories].map((cat, idx) => (
+                  <div key={`${cat.id}-${idx}`} className="quick-card" aria-hidden={idx >= dynamicSnapClickCategories.length}>
+                    <div className="quick-image"><img src={cat.image} alt={cat.name} /></div>
+                    <h3>{cat.name}</h3>
+                    <p className="quick-time">⏱️ {cat.time}</p>
+                    <button className="quick-btn" type="button" onClick={() => goToProfessionals({ focus: 'snap-click', service: cat.name })}>Book</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="stats-section">
         <div className="container">
           <div className="stats-grid">
@@ -349,60 +478,83 @@ function Home() {
               Loading services...
             </div>
           ) : mostBookedServices.length > 0 ? (
-            <div className="services-carousel">
-              {mostBookedServices.map((service) => (
-                <div
-                  key={service.id}
-                  className="service-carousel-card"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => goToServiceDetails(service.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      goToServiceDetails(service.id);
-                    }
-                  }}
+            <div className="services-carousel-shell">
+              <div className="carousel-nav-holder">
+                <button
+                  aria-label="Scroll most booked services left"
+                  className="carousel-nav left"
+                  onClick={() => scrollShell(mostBookedShellRef, mostBookedTrackRef, -340)}
+                  type="button"
                 >
-                  {service.discount && (
-                    <div className="discount-badge">{service.discount}</div>
-                  )}
-                  <div className="service-image">
-                    {service.image ? (
-                      <img
-                        src={service.image}
-                        alt={service.name}
-                        onClick={() => goToServiceDetails(service.id)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    ) : (
-                      <div className="image-placeholder" onClick={() => goToServiceDetails(service.id)} style={{ cursor: 'pointer' }}>📷</div>
-                    )}
-                  </div>
-                  <h3>{service.name}</h3>
-                  <div className="rating">
-                    <span className="stars">⭐ {service.rating.toFixed(1)}</span>
-                    <span className="reviews">({service.reviews})</span>
-                  </div>
-                  <div className="service-details">
-                    <span className="time">⏱️ {service.time}</span>
-                    <span className="instant">Instant</span>
-                  </div>
-                  <div className="price-section">
-                    <span className="price">₹{service.price}</span>
-                    <button
-                      className="book-btn"
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        goToServiceDetails(service.id);
+                  ‹
+                </button>
+                <button
+                  aria-label="Scroll most booked services right"
+                  className="carousel-nav right"
+                  onClick={() => scrollShell(mostBookedShellRef, mostBookedTrackRef, 340)}
+                  type="button"
+                >
+                  ›
+                </button>
+              </div>
+              <div ref={mostBookedShellRef} className="services-carousel-shell-scroll">
+                <div ref={mostBookedTrackRef} className="services-carousel auto-scroll-ltr">
+                  {[...mostBookedServices, ...mostBookedServices].map((service, index) => (
+                    <div
+                      key={`${service.id}-${index}`}
+                      className="service-carousel-card"
+                      role="button"
+                      tabIndex={0}
+                      aria-hidden={index >= mostBookedServices.length}
+                      onClick={() => goToServiceDetails(service.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          goToServiceDetails(service.id);
+                        }
                       }}
                     >
-                      View Details
-                    </button>
-                  </div>
+                      {service.discount && (
+                        <div className="discount-badge">{service.discount}</div>
+                      )}
+                      <div className="service-image">
+                        {service.image ? (
+                          <img
+                            src={service.image}
+                            alt={service.name}
+                            onClick={() => goToServiceDetails(service.id)}
+                            style={{ cursor: 'pointer' }}
+                          />
+                        ) : (
+                          <div className="image-placeholder" onClick={() => goToServiceDetails(service.id)} style={{ cursor: 'pointer' }}>📷</div>
+                        )}
+                      </div>
+                      <h3>{service.name}</h3>
+                      <div className="rating">
+                        <span className="stars">⭐ {service.rating.toFixed(1)}</span>
+                        <span className="reviews">({service.reviews})</span>
+                      </div>
+                      <div className="service-details">
+                        <span className="time">⏱️ {service.time}</span>
+                        <span className="instant">Instant</span>
+                      </div>
+                      <div className="price-section">
+                        <span className="price">₹{service.price}</span>
+                        <button
+                          className="book-btn"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            goToServiceDetails(service.id);
+                          }}
+                        >
+                          Book Now
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           ) : (
             <div className="no-services-message" style={{ textAlign: 'center', padding: '40px', fontSize: '1.1em', color: '#999' }}>
@@ -474,35 +626,67 @@ function Home() {
                 </div>
               </div>
             ) : (
-              <div className="category-services">
-                {category.services.map((service, idx) => {
-                  const serviceName = typeof service === 'string' ? service : service.name;
-                  const serviceImage = typeof service === 'string' ? `/${category.icon}` : service.image;
+              <div className="category-services-carousel-shell">
+                {(() => {
+                  const shellRef = category.title === 'Cleaning Essentials' ? cleaningShellRef : groomingShellRef;
+                  const trackRef = category.title === 'Cleaning Essentials' ? cleaningTrackRef : groomingTrackRef;
+
                   return (
-                    <div key={typeof service === 'string' ? `${service}-${idx}` : service.id} className="category-service-card">
-                      <div className="service-image-lg">
-                        <img src={serviceImage} alt={serviceName} />
+                    <>
+                      <div className="carousel-nav-holder category-nav-holder">
+                        <button
+                          aria-label={`Scroll ${category.title} left`}
+                          className="carousel-nav left"
+                          onClick={() => scrollShell(shellRef, trackRef, -260)}
+                          type="button"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          aria-label={`Scroll ${category.title} right`}
+                          className="carousel-nav right"
+                          onClick={() => scrollShell(shellRef, trackRef, 260)}
+                          type="button"
+                        >
+                          ›
+                        </button>
                       </div>
-                      <h3>{serviceName}</h3>
-                      <p>Professional & verified</p>
-                      <button
-                        className="service-btn"
-                        type="button"
-                        onClick={() =>
-                          goToProfessionals({
-                            focus:
-                              category.title === 'Cleaning Essentials'
-                                ? 'cleaning-essentials'
-                                : 'grooming-for-men',
-                            service: serviceName,
-                          })
-                        }
-                      >
-                        Explore
-                      </button>
-                    </div>
+                      <div ref={shellRef} className="category-services-scroll-shell">
+                        <div ref={trackRef} className="category-services-track auto-scroll-ltr">
+                          {[...category.services, ...category.services].map((service, idx) => {
+                            const serviceName = typeof service === 'string' ? service : service.name;
+                            const serviceImage = typeof service === 'string' ? `/${category.icon}` : service.image;
+                            const serviceKey = typeof service === 'string' ? `${service}-${idx}` : `${service.id}-${idx}`;
+                            return (
+                              <div key={serviceKey} className="category-service-card" aria-hidden={idx >= category.services.length}>
+                                <div className="service-image-lg">
+                                  <img src={serviceImage} alt={serviceName} />
+                                </div>
+                                <h3>{serviceName}</h3>
+                                <p>Professional & verified</p>
+                                <button
+                                  className="service-btn"
+                                  type="button"
+                                  onClick={() =>
+                                    goToProfessionals({
+                                      focus:
+                                        category.title === 'Cleaning Essentials'
+                                          ? 'cleaning-essentials'
+                                          : 'grooming-for-men',
+                                      service: serviceName,
+                                    })
+                                  }
+                                >
+                                  Explore
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
                   );
-                })}
+                })()}
               </div>
             )}
           </div>

@@ -30,6 +30,18 @@ const serviceSchema = new mongoose.Schema(
       type: Number,
       required: [true, 'Please provide a base price'],
     },
+    commissionToKlPro: {
+      type: Number,
+      default: 0,
+    },
+    gstFromCustomer: {
+      type: Number,
+      default: 0,
+    },
+    cashPaymentPlatformChargeFromCustomer: {
+      type: Number,
+      default: 0,
+    },
     estimatedDuration: {
       type: Number, // in minutes
       required: true,

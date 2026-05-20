@@ -228,7 +228,7 @@ const WorkOrdersPage = () => {
         }
       );
 
-      setActionMessage('Final OTP generated. Ask the customer to share it here.');
+      setActionMessage('Final OTP generated. Ask the customer to share it with you.');
       setCompletionPhoto(null);
       await fetchWorkOrders();
     } catch (completionError) {
@@ -418,6 +418,32 @@ const WorkOrdersPage = () => {
                   )}
                 </div>
 
+                {(order.feeBreakdown || order.commissionAmount) && (
+                  <div className="order-section">
+                    <h4>Fee Breakdown</h4>
+                    <div className="info-row amount">
+                      <span className="label">Service Charge:</span>
+                      <span className="value">₹{Number(order.feeBreakdown?.serviceChargeAmount ?? order.totalAmount ?? 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="info-row amount">
+                      <span className="label">GST:</span>
+                      <span className="value">₹{Number(order.feeBreakdown?.gstAmount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="info-row amount">
+                      <span className="label">Cash Platform Charge:</span>
+                      <span className="value">₹{Number(order.feeBreakdown?.platformChargeAmount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="info-row amount">
+                      <span className="label">Commission:</span>
+                      <span className="value">₹{Number(order.feeBreakdown?.commissionAmount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="info-row amount">
+                      <span className="label">Professional Payout:</span>
+                      <span className="value">₹{Number(order.feeBreakdown?.professionalPayoutAmount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                )}
+
                 {order.description && (
                   <div className="order-section">
                     <h4>Description</h4>
@@ -454,12 +480,12 @@ const WorkOrdersPage = () => {
                 <span className="created-date">
                   📅 Created: {new Date(order.createdAt).toLocaleDateString('en-IN')}
                 </span>
-                {['pending', 'confirmed'].includes(order.status) && (
+                {['pending', 'confirmed', 'in-progress'].includes(order.status) && (
                   <button
                     className="btn-action"
                     onClick={() => openOrderModal(order)}
                   >
-                    Update Status
+                    {order.status === 'in-progress' ? 'Resume Completion' : 'Update Status'}
                   </button>
                 )}
               </div>

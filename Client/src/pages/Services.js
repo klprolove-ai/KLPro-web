@@ -333,6 +333,51 @@ function Services() {
     navigate(`/services/${service.id}`);
   };
 
+  const handleAddToCart = (service) => {
+    try {
+      const existing = JSON.parse(localStorage.getItem('serviceBookingCart') || '[]');
+      const nextItems = Array.isArray(existing) ? existing : [];
+      const serviceId = String(service.id);
+
+      if (!nextItems.some((item) => String(item.id) === serviceId)) {
+        nextItems.push({
+          id: serviceId,
+          name: service.name,
+          price: Number(service.price) || 0,
+          image: service.image || '',
+          category: service.category || '',
+          serviceType: service.serviceType || '',
+          subCategory: service.subCategory || '',
+        });
+        localStorage.setItem('serviceBookingCart', JSON.stringify(nextItems));
+      }
+
+      localStorage.setItem(
+        'bookingDraft',
+        JSON.stringify({
+          serviceId: service.id,
+          serviceName: service.name,
+          expectedPrice: service.price,
+        })
+      );
+      window.dispatchEvent(new Event('serviceCartUpdated'));
+    } catch (error) {
+      console.error('Failed to add service to cart:', error);
+    }
+  };
+
+  const handleBookNow = (service) => {
+    localStorage.setItem(
+      'bookingDraft',
+      JSON.stringify({
+        serviceId: service.id,
+        serviceName: service.name,
+        expectedPrice: service.price,
+      })
+    );
+    navigate(`/professionals?service=${encodeURIComponent(service.name)}&category=${encodeURIComponent(service.category || '')}&serviceId=${encodeURIComponent(service.id)}`);
+  };
+
   return (
     <div className="services-page">
       <section className="services-hero">
@@ -581,12 +626,24 @@ function Services() {
 
                         <div className="service-footer">
                           <span className="price">₹{service.price}</span>
-                          <button className="book-now-btn" type="button" onClick={(event) => {
-                            event.stopPropagation();
-                            openServiceDetails(service);
-                          }}>
-                            View Details
-                          </button>
+                          <div className="service-card-actions">
+                            <button
+                              className="book-now-btn secondary"
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleAddToCart(service);
+                              }}
+                            >
+                              Add To Cart
+                            </button>
+                            <button className="book-now-btn" type="button" onClick={(event) => {
+                              event.stopPropagation();
+                              handleBookNow(service);
+                            }}>
+                              Book Now
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

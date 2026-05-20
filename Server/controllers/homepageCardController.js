@@ -25,6 +25,9 @@ const mapCardsBySection = (cards) => {
     'salon-for-women': [],
     'cleaning-essentials': [],
     'grooming-for-men': [],
+    'home-decoration': [],
+    'property-services': [],
+    'snap-click': [],
   };
 
   cards.forEach((card) => {

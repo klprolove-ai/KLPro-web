@@ -223,6 +223,7 @@ function ProfessionalDetails() {
   const isLoggedIn = Boolean(authToken);
 
   const [professional, setProfessional] = useState(location.state?.professional || null);
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(!location.state?.professional);
   const [error, setError] = useState('');
 
@@ -246,6 +247,32 @@ function ProfessionalDetails() {
       return null;
     }
   }, []);
+
+  const resolvedServiceForBooking = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search || '');
+    const serviceQuery = String(
+      searchParams.get('service') ||
+      searchParams.get('q') ||
+      searchParams.get('focus') ||
+      bookingDraft?.serviceName ||
+      ''
+    ).trim().toLowerCase();
+
+    const serviceId = String(bookingDraft?.serviceId || '').trim();
+    if (serviceId) {
+      const directMatch = services.find((service) => String(service?._id) === serviceId);
+      if (directMatch) return directMatch;
+    }
+
+    if (!serviceQuery) return null;
+
+    return services.find((service) => {
+      const haystack = [service?.name, service?.category, service?.subCategory, service?.subSubCategory, service?.serviceType]
+        .map((value) => String(value || '').toLowerCase())
+        .join(' ');
+      return haystack.includes(serviceQuery) || serviceQuery.includes(String(service?.name || '').toLowerCase());
+    }) || null;
+  }, [bookingDraft?.serviceId, bookingDraft?.serviceName, location.search, services]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -353,6 +380,8 @@ function ProfessionalDetails() {
             ? servicesResponse.data.services
             : [];
 
+        setServices(apiServices);
+
         const servicePriceMap = new Map(
           apiServices.map((service) => [String(service?._id), Number(service?.basePrice) || 0])
         );
@@ -439,15 +468,17 @@ function ProfessionalDetails() {
       return;
     }
 
-    const bookingDraft = {
+    const nextBookingDraft = {
       professionalId: professional.id,
       professionalName: professional.name,
       scheduledDate: selectedDate,
       scheduledTime: selectedSlot,
-      expectedPrice: professional.startingPrice,
+      serviceId: resolvedServiceForBooking?._id || bookingDraft?.serviceId || '',
+      serviceName: resolvedServiceForBooking?.name || bookingDraft?.serviceName || '',
+      expectedPrice: resolvedServiceForBooking?.basePrice || professional.startingPrice,
     };
 
-    localStorage.setItem('bookingDraft', JSON.stringify(bookingDraft));
+    localStorage.setItem('bookingDraft', JSON.stringify(nextBookingDraft));
     navigate('/bookings');
   };
 

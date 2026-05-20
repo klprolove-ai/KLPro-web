@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Booking = require('../models/Booking');
 const Professional = require('../models/Professional');
+const Service = require('../models/Service');
 const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const cloudinary = require('../config/cloudinary');
@@ -14,6 +15,32 @@ const Payment = require('../models/Payment');
 const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
 const ACTIVE_BLOCKING_STATUSES = ['pending', 'confirmed', 'in-progress'];
 const RELEASING_STATUSES = ['rejected', 'cancelled', 'completed'];
+
+const roundCurrency = (value) => Math.round(Number(value) || 0);
+
+const calculateServicePricing = (service, paymentMethod) => {
+  const serviceChargeAmount = roundCurrency(service?.basePrice || 0);
+  const gstPercentage = Number(service?.gstFromCustomer || 0);
+  const commissionPercentage = Number(service?.commissionToKlPro || 0);
+  const platformChargePercentage = paymentMethod === 'cash'
+    ? Number(service?.cashPaymentPlatformChargeFromCustomer || 0)
+    : 0;
+
+  const gstAmount = roundCurrency((serviceChargeAmount * gstPercentage) / 100);
+  const platformChargeAmount = roundCurrency((serviceChargeAmount * platformChargePercentage) / 100);
+  const commissionAmount = roundCurrency((serviceChargeAmount * commissionPercentage) / 100);
+  const totalAmount = serviceChargeAmount + gstAmount + platformChargeAmount;
+  const professionalPayoutAmount = Math.max(totalAmount - commissionAmount, 0);
+
+  return {
+    serviceChargeAmount,
+    gstAmount,
+    platformChargeAmount,
+    commissionAmount,
+    totalAmount,
+    professionalPayoutAmount,
+  };
+};
 
 const sanitizeBookingForProfessional = (bookingDoc) => {
   const booking = typeof bookingDoc?.toObject === 'function' ? bookingDoc.toObject() : bookingDoc;
@@ -162,7 +189,7 @@ router.get('/professional/my-jobs', authMiddleware, async (req, res) => {
         select: 'userId currentCity currentLocation',
         populate: { path: 'userId', select: 'name profileImage' },
       })
-      .populate('serviceId', 'name basePrice category subCategory')
+      .populate('serviceId', 'name basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer category subCategory')
       .sort({ createdAt: -1 });
 
     const visibleBookings = bookings.filter((booking) => {
@@ -259,7 +286,7 @@ router.put('/professional/:id/status', authMiddleware, async (req, res) => {
         select: 'userId currentCity currentLocation',
         populate: { path: 'userId', select: 'name profileImage' },
       })
-      .populate('serviceId', 'name basePrice category subCategory');
+      .populate('serviceId', 'name basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer category subCategory');
 
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found for this professional' });
@@ -448,7 +475,7 @@ router.post('/professional/:id/prepare-completion', authMiddleware, completionPh
 
     res.json({
       success: true,
-      message: 'Completion OTP generated. Customer can view it in their booking details.',
+      message: 'Completion OTP generated.',
       booking: sanitizeBookingForProfessional(booking),
     });
   } catch (error) {
@@ -519,6 +546,24 @@ router.post('/:id/verify-completion-otp', authMiddleware, async (req, res) => {
   });
 });
 
+// Get bookings for the logged-in user in the legacy /user shape
+router.get('/user', authMiddleware, async (req, res) => {
+  try {
+    const bookings = await Booking.find({ customerId: req.userId })
+      .populate({
+        path: 'professionalId',
+        select: 'userId currentCity currentLocation',
+        populate: { path: 'userId', select: 'name profileImage phone' },
+      })
+      .populate('serviceId', 'name basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer')
+      .sort({ createdAt: -1 });
+
+    res.json({ data: bookings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get user bookings
 router.get('/', authMiddleware, async (req, res) => {
   try {
@@ -528,7 +573,7 @@ router.get('/', authMiddleware, async (req, res) => {
         select: 'userId currentCity currentLocation',
         populate: { path: 'userId', select: 'name profileImage phone' },
       })
-      .populate('serviceId', 'name basePrice')
+      .populate('serviceId', 'name basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer')
       .sort({ createdAt: -1 });
     res.json(bookings);
   } catch (error) {
@@ -546,7 +591,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
         select: 'userId currentCity currentLocation',
         populate: { path: 'userId', select: 'name profileImage phone' },
       })
-      .populate('serviceId', 'name');
+      .populate('serviceId', 'name basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer');
 
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
@@ -594,6 +639,14 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Professional not found' });
     }
 
+    const service = await Service.findById(serviceId).select('basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer name');
+    if (!service) {
+      return res.status(404).json({ message: 'Service not found' });
+    }
+
+    const normalizedPaymentMethod = paymentMethod === 'online' ? 'razorpay' : String(paymentMethod || 'cash').toLowerCase();
+    const pricing = calculateServicePricing(service, normalizedPaymentMethod);
+
     const dateRange = {
       $gte: startOfDay(scheduledDate),
       $lte: endOfDay(scheduledDate),
@@ -620,10 +673,18 @@ router.post('/', authMiddleware, async (req, res) => {
       scheduledDate,
       scheduledTime,
       serviceAddress,
-      price,
+      price: pricing.totalAmount,
       notes,
-      paymentMethod: paymentMethod === 'online' ? 'razorpay' : paymentMethod || 'cash',
+      paymentMethod: normalizedPaymentMethod,
       paymentStatus: 'pending',
+      feeBreakdown: {
+        serviceChargeAmount: pricing.serviceChargeAmount,
+        gstAmount: pricing.gstAmount,
+        platformChargeAmount: pricing.platformChargeAmount,
+        commissionAmount: pricing.commissionAmount,
+        professionalPayoutAmount: pricing.professionalPayoutAmount,
+        totalAmount: pricing.totalAmount,
+      },
       startOtp: generateOtp(),
       auditLogs: [
         {
