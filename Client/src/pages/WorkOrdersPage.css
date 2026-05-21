@@ -261,6 +261,29 @@
   font-weight: 700;
 }
 
+.info-row.amount .value.deduction {
+  color: #d62828;
+}
+
+.info-row.professional-payout-row {
+  background: #ecfdf5 !important;
+  border: 2px solid #0d7a3b !important;
+  padding: 12px 12px !important;
+  margin-top: 15px !important;
+  border-radius: 8px;
+}
+
+.info-row.professional-payout-row .label {
+  color: #0d7a3b;
+  font-size: 0.95rem;
+}
+
+.info-row.professional-payout-row .payout-amount {
+  color: #0d7a3b;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
 .description {
   color: #666;
   line-height: 1.6;

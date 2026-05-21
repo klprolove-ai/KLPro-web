@@ -267,14 +267,65 @@ const AdminWalletCommission = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="deductReason">Reason for Deduction *</label>
+                  <label>Fee Type Breakdown *</label>
+                  <div style={{display: 'flex', gap: '16px', marginBottom: '12px', flexWrap: 'wrap'}}>
+                    <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
+                      <input
+                        type="checkbox"
+                        checked={deductReason.includes('Commission')}
+                        onChange={(e) => {
+                          if (e.target.checked && !deductReason.includes('Commission')) {
+                            setDeductReason(deductReason ? deductReason + ', Commission' : 'Commission');
+                          } else if (!e.target.checked && deductReason.includes('Commission')) {
+                            setDeductReason(deductReason.replace(', Commission', '').replace('Commission, ', '').replace('Commission', ''));
+                          }
+                        }}
+                        disabled={processing}
+                      />
+                      Commission
+                    </label>
+                    <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
+                      <input
+                        type="checkbox"
+                        checked={deductReason.includes('GST')}
+                        onChange={(e) => {
+                          if (e.target.checked && !deductReason.includes('GST')) {
+                            setDeductReason(deductReason ? deductReason + ', GST' : 'GST');
+                          } else if (!e.target.checked && deductReason.includes('GST')) {
+                            setDeductReason(deductReason.replace(', GST', '').replace('GST, ', '').replace('GST', ''));
+                          }
+                        }}
+                        disabled={processing}
+                      />
+                      GST Tax
+                    </label>
+                    <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
+                      <input
+                        type="checkbox"
+                        checked={deductReason.includes('Platform Charge')}
+                        onChange={(e) => {
+                          if (e.target.checked && !deductReason.includes('Platform Charge')) {
+                            setDeductReason(deductReason ? deductReason + ', Platform Charge' : 'Platform Charge');
+                          } else if (!e.target.checked && deductReason.includes('Platform Charge')) {
+                            setDeductReason(deductReason.replace(', Platform Charge', '').replace('Platform Charge, ', '').replace('Platform Charge', ''));
+                          }
+                        }}
+                        disabled={processing}
+                      />
+                      Platform Charge
+                    </label>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="deductReason">Additional Notes</label>
                   <textarea
                     id="deductReason"
                     className="form-control"
                     value={deductReason}
                     onChange={(e) => setDeductReason(e.target.value)}
-                    placeholder="e.g., Platform commission - April 2024"
-                    rows="4"
+                    placeholder="Add any additional notes (optional)"
+                    rows="3"
                     disabled={processing}
                   />
                 </div>

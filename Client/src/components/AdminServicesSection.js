@@ -530,6 +530,36 @@ function AdminServicesSection({
                   placeholder="30"
                 />
               </div>
+              <div className="form-group">
+                <label>Commission To KLPro (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editingService?.commissionToKlPro ?? 0}
+                  onChange={(e) => setEditingService({...editingService, commissionToKlPro: Number(e.target.value)})}
+                />
+              </div>
+              <div className="form-group">
+                <label>GST From Customer (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editingService?.gstFromCustomer ?? 0}
+                  onChange={(e) => setEditingService({...editingService, gstFromCustomer: Number(e.target.value)})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Cash Payment Platform Charge (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editingService?.cashPaymentPlatformChargeFromCustomer ?? 0}
+                  onChange={(e) => setEditingService({...editingService, cashPaymentPlatformChargeFromCustomer: Number(e.target.value)})}
+                />
+              </div>
             </div>
             <div className="form-group">
               <label>Service Image</label>

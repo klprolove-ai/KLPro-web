@@ -619,22 +619,29 @@ function Professionals() {
         professionalCities.some(
           (city) => city.includes(normalizedDetectedCity) || normalizedDetectedCity.includes(city)
         );
-      const onlineMatch = professional.isOnline;
 
-      return searchMatch && intentMatch && specializationMatch && priceMatch && ratingMatch && locationMatch && onlineMatch;
+      return searchMatch && intentMatch && specializationMatch && priceMatch && ratingMatch && locationMatch;
     });
 
-    const withPersonalization = filtered.map((professional) => {
+    // Check if we have available (online) professionals in the detected city
+    const availableProfessionals = filtered.filter((p) => p.isOnline);
+    
+    // If no available professionals in detected city, show all from that city with "Busy Another Work" badge
+    const displayProfessionals = availableProfessionals.length > 0 ? availableProfessionals : filtered;
+
+    const withPersonalization = displayProfessionals.map((professional) => {
       const keywordMatchCount = professional.serviceTags.filter((tag) => personalizationContext.keywordTokens.has(tag)).length;
       const bookedBeforeBoost = personalizationContext.bookedProfessionalIds.has(String(professional.id)) ? 3 : 0;
       const priceAffinity = personalizationContext.avgPrice
         ? Math.max(0, 1 - Math.abs(professional.startingPrice - personalizationContext.avgPrice) / 1200)
         : 0;
       const recommendationScore = keywordMatchCount * 1.8 + bookedBeforeBoost + priceAffinity + professional.rating * 0.25;
+      const isBusyAnotherWork = availableProfessionals.length > 0 ? false : !professional.isOnline;
 
       return {
         ...professional,
         recommendationScore,
+        isBusyAnotherWork,
       };
     });
 
@@ -827,7 +834,11 @@ function Professionals() {
                         <h3>{professional.name}</h3>
                         <p>{professional.specialization}</p>
                       </div>
-                      <span className="online-badge">Online</span>
+                      {professional.isBusyAnotherWork ? (
+                        <span className="busy-badge">Busy Another Work</span>
+                      ) : (
+                        <span className="online-badge">Online</span>
+                      )}
                     </div>
 
                     <div className="professional-meta">

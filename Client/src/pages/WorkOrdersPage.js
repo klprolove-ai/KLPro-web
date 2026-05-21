@@ -420,26 +420,38 @@ const WorkOrdersPage = () => {
 
                 {(order.feeBreakdown || order.commissionAmount) && (
                   <div className="order-section">
-                    <h4>Fee Breakdown</h4>
-                    <div className="info-row amount">
-                      <span className="label">Service Charge:</span>
-                      <span className="value">₹{Number(order.feeBreakdown?.serviceChargeAmount ?? order.totalAmount ?? 0).toLocaleString('en-IN')}</span>
+                    <h4>Fee Breakdown - Sequential Deduction</h4>
+                    <div className="info-row amount" style={{backgroundColor: '#f0f9ff', borderLeft: '4px solid #2563eb', paddingLeft: '12px'}}>
+                      <span className="label" style={{color: '#2563eb', fontWeight: '700'}}>Service Charge (Base):</span>
+                      <span className="value" style={{color: '#2563eb', fontWeight: '700', fontSize: '16px'}}>₹{Number(order.feeBreakdown?.totalAmount ?? order.totalAmount ?? 0).toLocaleString('en-IN')}</span>
                     </div>
                     <div className="info-row amount">
-                      <span className="label">GST:</span>
-                      <span className="value">₹{Number(order.feeBreakdown?.gstAmount || 0).toLocaleString('en-IN')}</span>
+                      <span className="label" style={{color: '#d62828'}}>- GST Deduction:</span>
+                      <span className="value deduction" style={{color: '#d62828', fontWeight: '600'}}>₹{Number(order.feeBreakdown?.gstAmount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="info-row amount" style={{backgroundColor: '#f5f5f5'}}>
+                      <span className="label"><strong>= Service Charge After GST:</strong></span>
+                      <span className="value" style={{fontWeight: '600'}}>₹{(Number(order.feeBreakdown?.totalAmount ?? order.totalAmount ?? 0) - Number(order.feeBreakdown?.gstAmount || 0)).toLocaleString('en-IN')}</span>
                     </div>
                     <div className="info-row amount">
-                      <span className="label">Cash Platform Charge:</span>
-                      <span className="value">₹{Number(order.feeBreakdown?.platformChargeAmount || 0).toLocaleString('en-IN')}</span>
+                      <span className="label" style={{color: '#d62828'}}>- Cash Platform Charge:</span>
+                      <span className="value deduction" style={{color: '#d62828', fontWeight: '600'}}>₹{Number(order.feeBreakdown?.platformChargeAmount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="info-row amount" style={{backgroundColor: '#f5f5f5'}}>
+                      <span className="label"><strong>= Service Charge After Platform Charge:</strong></span>
+                      <span className="value" style={{fontWeight: '600'}}>₹{(Number(order.feeBreakdown?.totalAmount ?? order.totalAmount ?? 0) - Number(order.feeBreakdown?.gstAmount || 0) - Number(order.feeBreakdown?.platformChargeAmount || 0)).toLocaleString('en-IN')}</span>
                     </div>
                     <div className="info-row amount">
-                      <span className="label">Commission:</span>
-                      <span className="value">₹{Number(order.feeBreakdown?.commissionAmount || 0).toLocaleString('en-IN')}</span>
+                      <span className="label" style={{color: '#d62828'}}>- Commission Deduction:</span>
+                      <span className="value deduction" style={{color: '#d62828', fontWeight: '600'}}>₹{Number(order.feeBreakdown?.commissionAmount || 0).toLocaleString('en-IN')}</span>
                     </div>
-                    <div className="info-row amount">
-                      <span className="label">Professional Payout:</span>
-                      <span className="value">₹{Number(order.feeBreakdown?.professionalPayoutAmount || 0).toLocaleString('en-IN')}</span>
+                    <div className="info-row amount professional-payout-row" style={{backgroundColor: '#ecfdf5', borderLeft: '4px solid #0d7a3b', paddingLeft: '12px'}}>
+                      <span className="label"><strong style={{color: '#0d7a3b'}}>= Your Professional Payout:</strong></span>
+                      <span className="value payout-amount"><strong style={{color: '#0d7a3b', fontSize: '18px'}}>₹{(Number(order.feeBreakdown?.totalAmount ?? order.totalAmount ?? 0) - Number(order.feeBreakdown?.gstAmount || 0) - Number(order.feeBreakdown?.platformChargeAmount || 0) - Number(order.feeBreakdown?.commissionAmount || 0)).toLocaleString('en-IN')}</strong></span>
+                    </div>
+                    <div className="info-row amount" style={{backgroundColor: '#fef3c7', borderTop: '2px solid #f59e0b', marginTop: '16px', paddingTop: '16px'}}>
+                      <span className="label"><strong style={{color: '#92400e'}}>Total Deductions to Admin:</strong></span>
+                      <span className="value" style={{color: '#92400e', fontWeight: '700', fontSize: '16px'}}>₹{(Number(order.feeBreakdown?.gstAmount || 0) + Number(order.feeBreakdown?.platformChargeAmount || 0) + Number(order.feeBreakdown?.commissionAmount || 0)).toLocaleString('en-IN')}</span>
                     </div>
                   </div>
                 )}

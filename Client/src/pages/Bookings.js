@@ -80,16 +80,24 @@ const escapePdfText = (value) => String(value ?? '').replace(/\\/g, '\\\\').repl
 const buildSimplePdfBlob = (title, rows) => {
   const leftMargin = 48;
   const topStart = 790;
+  const lineHeight = 18;
+  let currentY = topStart;
 
   const contentStream = [
     'BT',
     '/F1 18 Tf',
-    `${leftMargin} ${topStart} Td`,
+    `${leftMargin} ${currentY} Td`,
     `(${escapePdfText(title)}) Tj`,
+    'ET',
+    'BT',
     '/F1 11 Tf',
     ...rows.flatMap((row) => {
+      currentY -= lineHeight;
       const rowText = Array.isArray(row) ? `${row[0]}: ${row[1]}` : String(row || '');
-      return [`T* (${escapePdfText(rowText)}) Tj`];
+      return [
+        `${leftMargin} ${currentY} Td`,
+        `(${escapePdfText(rowText)}) Tj`,
+      ];
     }),
     'ET',
   ].join('\n');
@@ -646,6 +654,14 @@ function Bookings() {
       ['Time', booking.scheduledTime || ''],
       ['Amount (INR)', booking.price || ''],
       ['Status', booking.status || ''],
+      ['', ''],
+      ['--- FEE BREAKDOWN ---', ''],
+      ['Service Charge', `₹${Number(booking?.feeBreakdown?.totalAmount || booking.price || 0).toLocaleString('en-IN')}`],
+      ['GST Deduction', `₹${Number(booking?.feeBreakdown?.gstAmount || 0).toLocaleString('en-IN')}`],
+      ['Platform Charge Deduction', `₹${Number(booking?.feeBreakdown?.platformChargeAmount || 0).toLocaleString('en-IN')}`],
+      ['Commission Deduction', `₹${Number(booking?.feeBreakdown?.commissionAmount || 0).toLocaleString('en-IN')}`],
+      ['', ''],
+      ['PROFESSIONAL PAYOUT', `₹${Number(booking?.feeBreakdown?.professionalPayoutAmount || 0).toLocaleString('en-IN')}`],
     ];
 
     const pdfBlob = buildSimplePdfBlob('KLPro Completed Booking Summary', rows);

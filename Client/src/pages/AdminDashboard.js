@@ -1587,38 +1587,45 @@ function AdminDashboard() {
                           </div>
 
                           <div className="booking-audit-panel">
-                            <h4>Fee Breakdown</h4>
+                            <h4>Fee Breakdown - Sequential Deduction</h4>
                             <div className="booking-audit-list">
-                              <div className="booking-audit-item">
-                                <strong>Service Charge</strong>
-                                <span>₹{Number(selectedBooking?.feeBreakdown?.serviceChargeAmount ?? selectedBooking?.price ?? 0).toLocaleString('en-IN')}</span>
+                              <div className="booking-audit-item" style={{backgroundColor: '#f0f9ff', borderLeft: '4px solid #2563eb'}}>
+                                <strong>Service Charge (Base)</strong>
+                                <span style={{color: '#2563eb', fontWeight: '700', fontSize: '16px'}}>₹{Number(selectedBooking?.feeBreakdown?.totalAmount ?? selectedBooking?.price ?? 0).toLocaleString('en-IN')}</span>
                               </div>
+
                               <div className="booking-audit-item">
-                                <strong>GST</strong>
-                                <span>
-                                  {Number(selectedBooking?.serviceId?.gstFromCustomer || 0).toLocaleString('en-IN')}% - ₹{Number(selectedBooking?.feeBreakdown?.gstAmount || 0).toLocaleString('en-IN')}
-                                </span>
+                                <strong style={{color: '#d62828'}}>- GST Deduction ({Number(selectedBooking?.serviceId?.gstFromCustomer || 0).toLocaleString('en-IN')}%)</strong>
+                                <span style={{color: '#d62828', fontWeight: '600'}}>- ₹{Number(selectedBooking?.feeBreakdown?.gstAmount || 0).toLocaleString('en-IN')}</span>
                               </div>
+                              <div className="booking-audit-item" style={{backgroundColor: '#f5f5f5'}}>
+                                <strong>= Service Charge After GST</strong>
+                                <span style={{fontWeight: '600'}}>₹{(Number(selectedBooking?.feeBreakdown?.totalAmount || selectedBooking?.price || 0) - Number(selectedBooking?.feeBreakdown?.gstAmount || 0)).toLocaleString('en-IN')}</span>
+                              </div>
+
                               <div className="booking-audit-item">
-                                <strong>Cash Platform Charge</strong>
-                                <span>
-                                  {Number(selectedBooking?.serviceId?.cashPaymentPlatformChargeFromCustomer || 0).toLocaleString('en-IN')}% - ₹{Number(selectedBooking?.feeBreakdown?.platformChargeAmount || 0).toLocaleString('en-IN')}
-                                </span>
+                                <strong style={{color: '#d62828'}}>- Cash Platform Charge ({Number(selectedBooking?.serviceId?.cashPaymentPlatformChargeFromCustomer || 0).toLocaleString('en-IN')}%)</strong>
+                                <span style={{color: '#d62828', fontWeight: '600'}}>- ₹{Number(selectedBooking?.feeBreakdown?.platformChargeAmount || 0).toLocaleString('en-IN')}</span>
                               </div>
+                              <div className="booking-audit-item" style={{backgroundColor: '#f5f5f5'}}>
+                                <strong>= Service Charge After Platform Charge</strong>
+                                <span style={{fontWeight: '600'}}>₹{(Number(selectedBooking?.feeBreakdown?.totalAmount || selectedBooking?.price || 0) - Number(selectedBooking?.feeBreakdown?.gstAmount || 0) - Number(selectedBooking?.feeBreakdown?.platformChargeAmount || 0)).toLocaleString('en-IN')}</span>
+                              </div>
+
                               <div className="booking-audit-item">
-                                <strong>Commission</strong>
-                                <span>
-                                  {Number(selectedBooking?.serviceId?.commissionToKlPro || 0).toLocaleString('en-IN')}% - ₹{Number(selectedBooking?.feeBreakdown?.commissionAmount || 0).toLocaleString('en-IN')}
-                                </span>
+                                <strong style={{color: '#d62828'}}>- Commission Deduction ({Number(selectedBooking?.serviceId?.commissionToKlPro || 0).toLocaleString('en-IN')}%)</strong>
+                                <span style={{color: '#d62828', fontWeight: '600'}}>- ₹{Number(selectedBooking?.feeBreakdown?.commissionAmount || 0).toLocaleString('en-IN')}</span>
                               </div>
-                              <div className="booking-audit-item">
-                                <strong>Professional Payout</strong>
-                                <span>₹{Number(selectedBooking?.feeBreakdown?.professionalPayoutAmount || 0).toLocaleString('en-IN')}</span>
+                              <div className="booking-audit-item" style={{backgroundColor: '#ecfdf5', borderLeft: '4px solid #0d7a3b'}}>
+                                <strong style={{color: '#0d7a3b', fontSize: '16px'}}>= Your Professional Payout</strong>
+                                <span style={{color: '#0d7a3b', fontWeight: '700', fontSize: '18px'}}>₹{(Number(selectedBooking?.feeBreakdown?.totalAmount || selectedBooking?.price || 0) - Number(selectedBooking?.feeBreakdown?.gstAmount || 0) - Number(selectedBooking?.feeBreakdown?.platformChargeAmount || 0) - Number(selectedBooking?.feeBreakdown?.commissionAmount || 0)).toLocaleString('en-IN')}</span>
                               </div>
-                              <div className="booking-audit-item">
-                                <strong>Total Amount</strong>
-                                <span>₹{Number(selectedBooking?.feeBreakdown?.totalAmount || selectedBooking?.price || 0).toLocaleString('en-IN')}</span>
+
+                              <div className="booking-audit-item" style={{backgroundColor: '#fef3c7', borderTop: '2px solid #f59e0b', marginTop: '16px', paddingTop: '16px'}}>
+                                <strong style={{color: '#92400e'}}>Total Deductions to Admin (GST + Platform Charge + Commission)</strong>
+                                <span style={{color: '#92400e', fontWeight: '700', fontSize: '16px'}}>₹{(Number(selectedBooking?.feeBreakdown?.gstAmount || 0) + Number(selectedBooking?.feeBreakdown?.platformChargeAmount || 0) + Number(selectedBooking?.feeBreakdown?.commissionAmount || 0)).toLocaleString('en-IN')}</span>
                               </div>
+
                               <div className="booking-audit-item">
                                 <strong>Commission Deducted</strong>
                                 <span>{selectedBooking?.commissionDeductedAt ? `Yes, ${new Date(selectedBooking.commissionDeductedAt).toLocaleString()}` : 'No'}</span>

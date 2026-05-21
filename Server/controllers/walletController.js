@@ -32,6 +32,28 @@ exports.getWalletDetails = async (req, res) => {
       await wallet.save();
     }
 
+    // Calculate fee breakdown details from completed bookings
+    const completedBookings = await Booking.find({
+      professionalId: professional._id,
+      status: 'completed'
+    }).populate('serviceId');
+
+    let totalServiceCharge = 0;
+    let totalGST = 0;
+    let totalPlatformCharge = 0;
+    let totalCommission = 0;
+    let totalPayout = 0;
+
+    completedBookings.forEach(booking => {
+      if (booking.feeBreakdown) {
+        totalServiceCharge += Number(booking.feeBreakdown.totalAmount || 0);
+        totalGST += Number(booking.feeBreakdown.gstAmount || 0);
+        totalPlatformCharge += Number(booking.feeBreakdown.platformChargeAmount || 0);
+        totalCommission += Number(booking.feeBreakdown.commissionAmount || 0);
+        totalPayout += Number(booking.feeBreakdown.professionalPayoutAmount || 0);
+      }
+    });
+
     // Get transaction history
     const transactions = await Transaction.find({ 
       walletId: wallet._id 
@@ -52,17 +74,65 @@ exports.getWalletDetails = async (req, res) => {
           .filter(Boolean)
       : [];
 
+    // Calculate earnings breakdown from completed bookings by date
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    const earningsToday = completedBookings
+      .filter(b => {
+        const bookingDate = b.completedAt ? new Date(b.completedAt) : (b.updatedAt ? new Date(b.updatedAt) : null);
+        return bookingDate && bookingDate >= todayStart;
+      })
+      .reduce((sum, b) => sum + Number(b.feeBreakdown?.professionalPayoutAmount || 0), 0);
+
+    const earningsThisWeek = completedBookings
+      .filter(b => {
+        const bookingDate = b.completedAt ? new Date(b.completedAt) : (b.updatedAt ? new Date(b.updatedAt) : null);
+        return bookingDate && bookingDate >= weekStart;
+      })
+      .reduce((sum, b) => sum + Number(b.feeBreakdown?.professionalPayoutAmount || 0), 0);
+
+    const earningsThisMonth = completedBookings
+      .filter(b => {
+        const bookingDate = b.completedAt ? new Date(b.completedAt) : (b.updatedAt ? new Date(b.updatedAt) : null);
+        return bookingDate && bookingDate >= monthStart;
+      })
+      .reduce((sum, b) => sum + Number(b.feeBreakdown?.professionalPayoutAmount || 0), 0);
+
+    const earningsThisYear = completedBookings
+      .filter(b => {
+        const bookingDate = b.completedAt ? new Date(b.completedAt) : (b.updatedAt ? new Date(b.updatedAt) : null);
+        return bookingDate && bookingDate >= yearStart;
+      })
+      .reduce((sum, b) => sum + Number(b.feeBreakdown?.professionalPayoutAmount || 0), 0);
+
     res.status(200).json({
       success: true,
       data: {
         wallet: {
           id: wallet._id,
-          totalEarnings: wallet.totalEarnings,
-          currentBalance: wallet.currentBalance,
-          totalWithdrawn: wallet.totalWithdrawn,
-          totalCommissionPaid: wallet.totalCommissionPaid,
-          earningsBreakdown: wallet.earningsBreakdown,
+          totalEarnings: totalPayout || wallet.totalEarnings,
+          currentBalance: wallet.currentBalance || 0,
+          totalWithdrawn: wallet.totalWithdrawn || 0,
+          totalCommissionPaid: wallet.totalCommissionPaid || 0,
+          earningsBreakdown: {
+            today: earningsToday,
+            thisWeek: earningsThisWeek,
+            thisMonth: earningsThisMonth,
+            thisYear: earningsThisYear,
+          },
           status: wallet.status,
+          feeBreakdownDetails: {
+            totalServiceCharge,
+            totalGST,
+            totalPlatformCharge,
+            totalCommission,
+            professionalPayout: totalPayout,
+          },
         },
         bankDetails: bankDetails ? {
           id: bankDetails._id,

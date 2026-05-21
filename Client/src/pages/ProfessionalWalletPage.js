@@ -197,6 +197,50 @@ const ProfessionalWalletPage = () => {
         </div>
       )}
 
+      {/* Fee Breakdown Details */}
+      {wallet?.feeBreakdownDetails && (
+        <div className="fee-breakdown-details">
+          <h3>💰 Professional Payout Calculation</h3>
+          <div className="breakdown-panel">
+            <div className="breakdown-row total-service">
+              <span className="breakdown-label">Total Service Charge</span>
+              <strong className="breakdown-value">₹{Number(wallet.feeBreakdownDetails.totalServiceCharge || 0).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}</strong>
+            </div>
+            <div className="breakdown-row deduction">
+              <span className="breakdown-label">Less: GST Deduction</span>
+              <span className="breakdown-value">- ₹{Number(wallet.feeBreakdownDetails.totalGST || 0).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}</span>
+            </div>
+            <div className="breakdown-row deduction">
+              <span className="breakdown-label">Less: Platform Charge Deduction</span>
+              <span className="breakdown-value">- ₹{Number(wallet.feeBreakdownDetails.totalPlatformCharge || 0).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}</span>
+            </div>
+            <div className="breakdown-row deduction">
+              <span className="breakdown-label">Less: Commission Deduction</span>
+              <span className="breakdown-value">- ₹{Number(wallet.feeBreakdownDetails.totalCommission || 0).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}</span>
+            </div>
+            <div className="breakdown-row professional-payout">
+              <span className="breakdown-label"><strong>Your Professional Payout</strong></span>
+              <strong className="breakdown-value payout">₹{(Number(wallet.feeBreakdownDetails.totalServiceCharge || 0) - Number(wallet.feeBreakdownDetails.totalGST || 0) - Number(wallet.feeBreakdownDetails.totalPlatformCharge || 0) - Number(wallet.feeBreakdownDetails.totalCommission || 0)).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}</strong>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="wallet-tabs">
         <button 

@@ -30,7 +30,8 @@ const calculateServicePricing = (service, paymentMethod) => {
   const platformChargeAmount = roundCurrency((serviceChargeAmount * platformChargePercentage) / 100);
   const commissionAmount = roundCurrency((serviceChargeAmount * commissionPercentage) / 100);
   const totalAmount = serviceChargeAmount + gstAmount + platformChargeAmount;
-  const professionalPayoutAmount = Math.max(totalAmount - commissionAmount, 0);
+  // Professional Payout = Service Charge - GST - Platform Charge - Commission
+  const professionalPayoutAmount = Math.max(serviceChargeAmount - gstAmount - platformChargeAmount - commissionAmount, 0);
 
   return {
     serviceChargeAmount,

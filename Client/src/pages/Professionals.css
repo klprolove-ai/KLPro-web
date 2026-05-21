@@ -289,10 +289,11 @@
   animation: card-enter 0.55s ease both;
   animation-delay: var(--card-stagger, 0ms);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
-  height: 412px;
+  height: 330px;
   display: flex;
   flex-direction: column;
   cursor: pointer;
+  max-width: 280px;
 }
 
 .professional-card:focus-visible {
@@ -307,8 +308,8 @@
 
 .market-media {
   position: relative;
-  height: 190px;
-  flex: 0 0 190px;
+  height: 140px;
+  flex: 0 0 140px;
   overflow: hidden;
 }
 
@@ -380,6 +381,18 @@
   background: #e7f7ec;
   border: 1px solid #bde8cb;
   color: #0d7a3b;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.busy-badge {
+  align-self: flex-start;
+  border-radius: 999px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  color: #92400e;
   font-size: 11px;
   font-weight: 700;
   padding: 4px 8px;
