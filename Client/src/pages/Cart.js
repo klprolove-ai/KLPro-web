@@ -15,6 +15,7 @@ const ORDERS_STORAGE_KEY = 'klproOrders';
 
 function Cart() {
   const [cartItems, setCartItems] = useState([]);
+  const [serviceItems, setServiceItems] = useState([]);
   const [checkoutForm, setCheckoutForm] = useState({
     fullName: '',
     email: '',
@@ -30,7 +31,15 @@ function Cart() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Load both product and service carts
     setCartItems(getCartItems());
+    
+    try {
+      const serviceCart = JSON.parse(localStorage.getItem('serviceBookingCart') || '[]');
+      setServiceItems(Array.isArray(serviceCart) ? serviceCart : []);
+    } catch (error) {
+      setServiceItems([]);
+    }
 
     const storedUserRaw = localStorage.getItem('user');
     if (storedUserRaw) {
@@ -46,35 +55,60 @@ function Cart() {
         // Ignore parse issues and keep defaults.
       }
     }
+
+    // Listen for service cart updates
+    const handleServiceCartUpdate = () => {
+      try {
+        const serviceCart = JSON.parse(localStorage.getItem('serviceBookingCart') || '[]');
+        setServiceItems(Array.isArray(serviceCart) ? serviceCart : []);
+      } catch (error) {
+        setServiceItems([]);
+      }
+    };
+    
+    window.addEventListener('serviceCartUpdated', handleServiceCartUpdate);
+    return () => window.removeEventListener('serviceCartUpdated', handleServiceCartUpdate);
   }, []);
 
   const subtotal = useMemo(
-    () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    [cartItems]
+    () => {
+      const productSubtotal = cartItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
+      const serviceSubtotal = serviceItems.reduce((sum, item) => sum + (item.price || 0), 0);
+      return productSubtotal + serviceSubtotal;
+    },
+    [cartItems, serviceItems]
   );
 
-  const shipping = cartItems.length > 0 ? (subtotal >= 2000 ? 0 : 99) : 0;
-  const tax = cartItems.length > 0 ? subtotal * 0.05 : 0;
+  const totalItems = (cartItems.length || 0) + (serviceItems.length || 0);
+  const shipping = totalItems > 0 ? (subtotal >= 2000 ? 0 : 99) : 0;
+  const tax = totalItems > 0 ? subtotal * 0.05 : 0;
   const total = subtotal + shipping + tax;
 
-  const refreshCart = (nextItems) => {
+  const handleQuantityChange = (productId, quantity) => {
+    const nextItems = updateCartItemQuantity(productId, quantity);
     setCartItems(nextItems);
     setOrderSuccess(null);
   };
 
-  const handleQuantityChange = (productId, quantity) => {
-    const nextItems = updateCartItemQuantity(productId, quantity);
-    refreshCart(nextItems);
-  };
-
   const handleRemove = (productId) => {
     const nextItems = removeCartItem(productId);
-    refreshCart(nextItems);
+    setCartItems(nextItems);
+    setOrderSuccess(null);
+  };
+
+  const handleRemoveService = (serviceId) => {
+    const updatedServices = serviceItems.filter((item) => String(item.id) !== String(serviceId));
+    localStorage.setItem('serviceBookingCart', JSON.stringify(updatedServices));
+    setServiceItems(updatedServices);
+    setOrderSuccess(null);
   };
 
   const handleClearCart = () => {
     const nextItems = clearCart();
-    refreshCart(nextItems);
+    setCartItems(nextItems);
+    localStorage.removeItem('serviceBookingCart');
+    setServiceItems([]);
+    setOrderSuccess(null);
   };
 
   const handleCheckoutInput = (field, value) => {
@@ -84,10 +118,15 @@ function Cart() {
     }));
   };
 
+  const handleBookNow = (service) => {
+    navigate(`/professionals?service=${encodeURIComponent(service.name)}&category=${encodeURIComponent(service.category || '')}&serviceId=${encodeURIComponent(service.id)}`);
+  };
+
   const placeOrder = async (event) => {
     event.preventDefault();
 
-    if (!cartItems.length) {
+    const totalCartItems = (cartItems.length || 0) + (serviceItems.length || 0);
+    if (!totalCartItems) {
       setCheckoutError('Your cart is empty.');
       return;
     }
@@ -104,6 +143,19 @@ function Cart() {
       setCheckoutError('');
       const token = localStorage.getItem('token');
 
+      // Combine products and services for the order
+      const allItems = [
+        ...cartItems.map(item => ({
+          ...item,
+          itemType: 'product',
+        })),
+        ...serviceItems.map(service => ({
+          ...service,
+          itemType: 'service',
+          quantity: 1,
+        }))
+      ];
+
       // Create product order on backend
       const response = await axios.post(
         `${API_BASE_URL}/products/create-order`,
@@ -114,6 +166,13 @@ function Cart() {
             price: item.price,
             quantity: item.quantity,
             image: item.image,
+          })),
+          services: serviceItems.map(service => ({
+            serviceId: service.id,
+            name: service.name,
+            price: service.price,
+            category: service.category,
+            image: service.image,
           })),
           shippingDetails: {
             fullName: checkoutForm.fullName,
@@ -143,7 +202,7 @@ function Cart() {
         setPendingPaymentOrder({
           orderId,
           total,
-          items: cartItems,
+          items: allItems,
           shippingDetails: {
             fullName: checkoutForm.fullName,
             email: checkoutForm.email,
@@ -154,7 +213,7 @@ function Cart() {
         // Cash on delivery
         const order = {
           id: orderId,
-          items: cartItems,
+          items: allItems,
           customer: checkoutForm,
           subtotal,
           shipping,
@@ -170,6 +229,8 @@ function Cart() {
 
         clearCart();
         setCartItems([]);
+        localStorage.removeItem('serviceBookingCart');
+        setServiceItems([]);
         setCheckoutError('');
         setOrderSuccess(order);
       }
@@ -204,10 +265,11 @@ function Cart() {
             )}
           </div>
 
-          {cartItems.length > 0 ? (
+          {cartItems.length > 0 || serviceItems.length > 0 ? (
             <div className="cart-items-list">
+              {/* Product Items */}
               {cartItems.map((item) => (
-                <article key={item.id} className="cart-item-card">
+                <article key={`product-${item.id}`} className="cart-item-card">
                   <div className="cart-item-image">
                     {item.image ? <img src={item.image} alt={item.name} /> : <div className="image-placeholder">📦</div>}
                   </div>
@@ -236,6 +298,43 @@ function Cart() {
                       <div className="price-block">
                         <span>₹{item.price}</span>
                         <strong>₹{item.price * item.quantity}</strong>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+
+              {/* Service Items */}
+              {serviceItems.map((service) => (
+                <article key={`service-${service.id}`} className="cart-item-card service-card">
+                  <div className="cart-item-image">
+                    {service.image ? <img src={service.image} alt={service.name} /> : <div className="image-placeholder">🔧</div>}
+                  </div>
+                  <div className="cart-item-content">
+                    <div className="cart-item-top">
+                      <div>
+                        <h3>{service.name}</h3>
+                        <p>{service.category}</p>
+                        {service.subCategory && <p className="service-sub-category">{service.subCategory}</p>}
+                      </div>
+                      <button className="remove-btn" type="button" onClick={() => handleRemoveService(service.id)}>
+                        Remove
+                      </button>
+                    </div>
+
+                    <div className="cart-item-bottom">
+                      <div className="service-actions">
+                        <button
+                          className="book-now-service-btn"
+                          type="button"
+                          onClick={() => handleBookNow(service)}
+                        >
+                          Book Now
+                        </button>
+                      </div>
+                      <div className="price-block">
+                        <span>₹{service.price}</span>
+                        <strong>₹{service.price}</strong>
                       </div>
                     </div>
                   </div>
@@ -321,7 +420,7 @@ function Cart() {
                 Continue Shopping
               </button>
             </div>
-          ) : (
+          ) : cartItems.length > 0 ? (
             <form className="summary-card checkout-form-card" onSubmit={placeOrder}>
               <h2>Checkout Details</h2>
 
@@ -395,14 +494,38 @@ function Cart() {
 
               {checkoutError && <div className="checkout-error">{checkoutError}</div>}
 
-              <button className="checkout-btn" type="submit" disabled={!cartItems.length}>
+              <button className="checkout-btn" type="submit">
                 Place Order
               </button>
               <Link className="secondary-link" to="/products">
                 Back to Products
               </Link>
             </form>
-          )}
+          ) : serviceItems.length > 0 ? (
+            <div className="summary-card service-summary-card">
+              <p className="service-notice-label">Service Booking</p>
+              <h2>Ready to Book?</h2>
+              <p className="service-notice-copy">
+                Click the "Book Now" button on any service to find and book professional to complete the work.
+              </p>
+              <div className="service-summary-box">
+                <div className="summary-row">
+                  <span>Services in Cart</span>
+                  <strong>{serviceItems.length}</strong>
+                </div>
+                <div className="summary-row">
+                  <span>Total Amount</span>
+                  <strong>₹{subtotal.toFixed(2)}</strong>
+                </div>
+              </div>
+              <button className="checkout-btn" type="button" disabled>
+                Select a Professional to Book
+              </button>
+              <Link className="secondary-link" to="/services">
+                Back to Services
+              </Link>
+            </div>
+          ) : null}
         </aside>
       </div>
     </div>

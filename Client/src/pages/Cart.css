@@ -200,6 +200,62 @@
   font-size: 1.15rem;
 }
 
+/* Service Card Styles */
+.cart-item-card.service-card {
+  border-color: rgba(123, 44, 191, 0.2);
+  background: linear-gradient(180deg, rgba(247, 244, 255, 0.8) 0%, rgba(240, 230, 255, 0.8) 100%);
+}
+
+.service-sub-category {
+  font-size: 0.85rem;
+  color: #a78bfa;
+  margin-top: 4px;
+}
+
+.service-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.service-label {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #e9d5ff;
+  color: #6b21a8;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.service-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.book-now-service-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #7b2cbf 0%, #9d4edd 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.book-now-service-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(123, 44, 191, 0.3);
+}
+
+.book-now-service-btn:active {
+  transform: translateY(0);
+}
+
 .cart-summary-panel {
   padding: 24px;
   height: fit-content;
@@ -210,6 +266,35 @@
 .summary-card {
   display: grid;
   gap: 16px;
+}
+
+.service-summary-card {
+  border: 1px solid rgba(123, 44, 191, 0.2);
+  background: linear-gradient(180deg, rgba(247, 244, 255, 0.8) 0%, rgba(240, 230, 255, 0.8) 100%);
+}
+
+.service-notice-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6b21a8;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.service-notice-copy {
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.service-summary-box {
+  background: rgba(255, 255, 255, 0.6);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(123, 44, 191, 0.1);
 }
 
 .checkout-form-card {

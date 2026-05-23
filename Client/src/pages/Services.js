@@ -18,6 +18,7 @@ function Services() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -339,7 +340,9 @@ function Services() {
       const nextItems = Array.isArray(existing) ? existing : [];
       const serviceId = String(service.id);
 
-      if (!nextItems.some((item) => String(item.id) === serviceId)) {
+      const alreadyExists = nextItems.some((item) => String(item.id) === serviceId);
+
+      if (!alreadyExists) {
         nextItems.push({
           id: serviceId,
           name: service.name,
@@ -350,6 +353,18 @@ function Services() {
           subCategory: service.subCategory || '',
         });
         localStorage.setItem('serviceBookingCart', JSON.stringify(nextItems));
+        
+        // Show success notification
+        setNotification({
+          type: 'success',
+          message: `${service.name} added to cart!`
+        });
+      } else {
+        // Show info notification if already in cart
+        setNotification({
+          type: 'info',
+          message: `${service.name} is already in your cart!`
+        });
       }
 
       localStorage.setItem(
@@ -361,8 +376,17 @@ function Services() {
         })
       );
       window.dispatchEvent(new Event('serviceCartUpdated'));
+
+      // Auto-hide notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
     } catch (error) {
       console.error('Failed to add service to cart:', error);
+      setNotification({
+        type: 'error',
+        message: 'Failed to add service to cart. Please try again.'
+      });
     }
   };
 
@@ -380,6 +404,17 @@ function Services() {
 
   return (
     <div className="services-page">
+      {notification && (
+        <div className={`notification notification-${notification.type}`}>
+          <div className="notification-content">
+            {notification.type === 'success' && <span className="notification-icon">✓</span>}
+            {notification.type === 'error' && <span className="notification-icon">✕</span>}
+            {notification.type === 'info' && <span className="notification-icon">ℹ</span>}
+            <span className="notification-message">{notification.message}</span>
+          </div>
+        </div>
+      )}
+      
       <section className="services-hero">
         <div className="services-hero-bg" style={{ backgroundImage: "url('/kl2.png')" }} />
       </section>

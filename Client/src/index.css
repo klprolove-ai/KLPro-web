@@ -128,12 +128,25 @@ p {
 
 /* Selection Styles */
 ::selection {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  background-color: var(--primary-color);
   color: white;
 }
 
 ::-moz-selection {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Input and Textarea Selection */
+input::selection,
+textarea::selection {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+input::-moz-selection,
+textarea::-moz-selection {
+  background-color: var(--primary-color);
   color: white;
 }
 
