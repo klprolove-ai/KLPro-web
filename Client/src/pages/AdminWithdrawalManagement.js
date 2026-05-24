@@ -57,24 +57,6 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
     }
   }, [token]);
 
-  // Fetch bank details for a withdrawal
-  const fetchBankDetails = useCallback(async (bankDetailsId, professionalId) => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/wallet/bank-details/${bankDetailsId || professionalId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!response.ok) return;
-      const data = await response.json();
-      setSelectedBankDetails(data.data || null);
-    } catch (err) {
-      console.error('Error fetching bank details:', err);
-    }
-  }, [token]);
-
   useEffect(() => {
     if (!token) {
       window.location.href = '/admin-login';
@@ -211,6 +193,11 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
     }
   };
 
+  const getProfessionalUser = (withdrawal) => withdrawal?.professionalId?.userId || null;
+  const getProfessionalName = (withdrawal) => getProfessionalUser(withdrawal)?.name || withdrawal?.professionalId?.name || 'Unknown';
+  const getProfessionalEmail = (withdrawal) => getProfessionalUser(withdrawal)?.email || withdrawal?.professionalId?.email || 'N/A';
+  const getProfessionalPhone = (withdrawal) => getProfessionalUser(withdrawal)?.phone || withdrawal?.professionalId?.phone || 'N/A';
+
   return (
     <div className={isEmbedded ? 'withdrawal-management-content' : 'admin-withdrawal-container'}>
       {!isEmbedded && (
@@ -282,15 +269,13 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
               className="withdrawal-card"
               onClick={() => {
                 setSelectedWithdrawal(withdrawal);
-                if (withdrawal.withdrawalDetails?.bankDetailsId || withdrawal.professionalId?._id) {
-                  fetchBankDetails(withdrawal.withdrawalDetails?.bankDetailsId, withdrawal.professionalId?._id);
-                }
+                setSelectedBankDetails(withdrawal.withdrawalDetails?.bankDetailsId || null);
               }}
             >
               <div className="withdrawal-header-card">
                 <div>
-                  <h3>{withdrawal.professionalId?.name || 'Unknown'}</h3>
-                  <p>{withdrawal.professionalId?.email || 'N/A'}</p>
+                  <h3>{getProfessionalName(withdrawal)}</h3>
+                  <p>{getProfessionalEmail(withdrawal)}</p>
                 </div>
                 <span
                   className="status-badge"
@@ -321,15 +306,15 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
       {/* Detail Modal */}
       {selectedWithdrawal && (
         <div className="modal-overlay" onClick={() => {
-          setSelectedWithdrawal(null);
-          setSelectedBankDetails(null);
+              setSelectedWithdrawal(null);
+              setSelectedBankDetails(null);
         }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Withdrawal Details</h2>
               <button className="close-btn" onClick={() => {
-                setSelectedWithdrawal(null);
-                setSelectedBankDetails(null);
+                  setSelectedWithdrawal(null);
+                  setSelectedBankDetails(null);
               }}>
                 ✕
               </button>
@@ -340,15 +325,15 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
               <div className="detail-grid">
                 <div>
                   <span className="label">Name:</span>
-                  <span className="value">{selectedWithdrawal.professionalId?.name}</span>
+                  <span className="value">{getProfessionalName(selectedWithdrawal)}</span>
                 </div>
                 <div>
                   <span className="label">Email:</span>
-                  <span className="value">{selectedWithdrawal.professionalId?.email}</span>
+                  <span className="value">{getProfessionalEmail(selectedWithdrawal)}</span>
                 </div>
                 <div>
                   <span className="label">Phone:</span>
-                  <span className="value">{selectedWithdrawal.professionalId?.phone}</span>
+                  <span className="value">{getProfessionalPhone(selectedWithdrawal)}</span>
                 </div>
               </div>
             </div>
@@ -383,9 +368,11 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
             {selectedBankDetails && selectedWithdrawal.withdrawalDetails?.method && (
               <div className="detail-section">
                 <h3>
-                  {selectedWithdrawal.withdrawalDetails.method === 'upi' 
-                    ? '📱 UPI Details' 
-                    : '🏦 Bank Details'}
+                  {selectedWithdrawal.withdrawalDetails.method === 'upi'
+                    ? '📱 UPI Details'
+                    : selectedWithdrawal.withdrawalDetails.method === 'net_banking'
+                      ? '🌐 Net Banking Details'
+                      : '🏦 Bank Details'}
                 </h3>
                 <div className="detail-grid">
                   {selectedWithdrawal.withdrawalDetails.method === 'upi' ? (
@@ -397,6 +384,35 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
                       <div>
                         <span className="label">Account Holder:</span>
                         <span className="value">{selectedBankDetails.accountHolderName || 'N/A'}</span>
+                      </div>
+                    </>
+                  ) : selectedWithdrawal.withdrawalDetails.method === 'net_banking' ? (
+                    <>
+                      <div>
+                        <span className="label">Account Holder:</span>
+                        <span className="value">{selectedBankDetails.accountHolderName || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="label">Bank Name:</span>
+                        <span className="value">{selectedBankDetails.bankName || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="label">Branch:</span>
+                        <span className="value">{selectedBankDetails.branchName || 'N/A'}</span>
+                      </div>
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <span className="label">Net Banking Details:</span>
+                        <div className="value" style={{ marginTop: '6px' }}>
+                          {Array.isArray(selectedBankDetails.paymentMethods)
+                            ? selectedBankDetails.paymentMethods
+                                .filter((method) => String(method?.methodType || '').toLowerCase() === 'net_banking')
+                                .map((method, index) => (
+                                  <div key={index} style={{ marginBottom: '6px' }}>
+                                    {method.details || 'N/A'}
+                                  </div>
+                                ))
+                            : 'N/A'}
+                        </div>
                       </div>
                     </>
                   ) : (
@@ -417,6 +433,20 @@ function AdminWithdrawalManagement({ isEmbedded = false }) {
                         <span className="label">IFSC Code:</span>
                         <span className="value">{selectedBankDetails.ifscCode || 'N/A'}</span>
                       </div>
+                      {Array.isArray(selectedBankDetails.paymentMethods) && selectedBankDetails.paymentMethods.length > 0 && (
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <span className="label">Available Payment Methods:</span>
+                          <div className="methods-list" style={{ marginTop: '8px' }}>
+                            {selectedBankDetails.paymentMethods.map((method, index) => (
+                              <div key={index} style={{ marginBottom: '10px' }}>
+                                <strong>{method.methodType || 'method'}</strong>
+                                {method.details ? <div>{method.details}</div> : null}
+                                <div>{method.isActive ? 'Active' : 'Inactive'}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>

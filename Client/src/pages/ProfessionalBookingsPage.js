@@ -54,12 +54,23 @@ const ProfessionalBookingsPage = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/bookings/user`, {
+      // For professional view, call the professional-specific endpoint so we get professional currentLocation
+      const response = await axios.get(`${API_BASE_URL}/bookings/professional/my-jobs`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      const bookingsData = response.data?.data || [];
-      setBookings(bookingsData);
+
+      // Support both response shapes: { bookings: [...] } or { data: [...] }
+      const bookingsData = response.data?.bookings || response.data?.data || response.data || [];
+
+      const enrichedBookings = Array.isArray(bookingsData)
+        ? bookingsData.map(booking => ({
+            ...booking,
+            professionalId: booking.professionalId || {},
+            // keep serviceAddress and customer fields as-is
+          }))
+        : [];
+
+      setBookings(enrichedBookings);
       setError(null);
     } catch (err) {
       if (err.response?.status !== 404) {
@@ -304,13 +315,58 @@ const ProfessionalBookingsPage = () => {
                 )}
 
                 {['confirmed', 'in-progress'].includes(String(booking.status || '')) && (
-                  <BookingRouteCard
-                    title="Live Route & Distance"
-                    originLocation={booking.serviceAddress}
-                    destinationLocation={booking.professionalId?.currentLocation}
-                    originLabel="Your location"
-                    destinationLabel="Professional location"
-                  />
+                  (() => {
+                    const professionalLoc = booking.professionalId?.currentLocation || null;
+                    // Prefer customer currentLocation if available, otherwise fall back to serviceAddress
+                    let customerLoc = booking.customerId?.currentLocation || booking.serviceAddress || null;
+
+                    // If no structured serviceAddress, try to build a fallback address from customer profile fields
+                    if (!customerLoc && booking.customerId) {
+                      const parts = [booking.customerId.address, booking.customerId.city, booking.customerId.currentCity]
+                        .filter(Boolean)
+                        .map(p => String(p).trim());
+                      const addressStr = parts.join(', ');
+                      if (addressStr) {
+                        customerLoc = { address: addressStr };
+                      }
+                    }
+
+                    if (professionalLoc && (customerLoc)) {
+                      return (
+                        <BookingRouteCard
+                          title="Customer Location & Route"
+                          // origin: professional (the professional's current/your location)
+                          originLocation={professionalLoc}
+                          // destination: customer/service address
+                          destinationLocation={customerLoc}
+                          originLabel="Your location"
+                          destinationLabel="Customer location"
+                        />
+                      );
+                    }
+
+                    if (!professionalLoc) {
+                      return (
+                        <div className="booking-section" style={{ padding: '12px', backgroundColor: '#e3f2fd', borderRadius: '8px', border: '1px solid #90caf9' }}>
+                          <p style={{ margin: 0, color: '#1976d2' }}>
+                            📍 Professional location tracking will be available once the professional comes online.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    if (professionalLoc && !customerLoc) {
+                      return (
+                        <div className="booking-section" style={{ padding: '12px', backgroundColor: '#fff3e0', borderRadius: '8px', border: '1px solid #ffcc80' }}>
+                          <p style={{ margin: 0, color: '#a65a00' }}>
+                            🧭 Customer address is not available; distance cannot be calculated.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  })()
                 )}
 
                 {booking.cancelReason && (

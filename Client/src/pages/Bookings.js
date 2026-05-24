@@ -46,9 +46,12 @@ const formatLiveLocationLabel = (location) => {
 
   const latitude = Number(location.latitude);
   const longitude = Number(location.longitude);
-  const coordinateText = Number.isNaN(latitude) || Number.isNaN(longitude)
-    ? ''
-    : `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  
+  // Only include coordinates if they are valid (not NaN, not 0, not null)
+  const hasValidCoordinates = !Number.isNaN(latitude) && !Number.isNaN(longitude) && latitude !== 0 && longitude !== 0;
+  const coordinateText = hasValidCoordinates
+    ? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+    : '';
 
   const updatedAt = location.updatedAt ? new Date(location.updatedAt) : null;
   const freshnessText = updatedAt && !Number.isNaN(updatedAt.getTime())
@@ -62,7 +65,8 @@ const buildMapEmbedUrl = (latitude, longitude) => {
   const lat = Number(latitude);
   const lng = Number(longitude);
 
-  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+  // Check for valid coordinates (not NaN, not null, not 0 or close to 0 which indicates missing data)
+  if (Number.isNaN(lat) || Number.isNaN(lng) || lat === 0 || lng === 0 || lat === null || lng === null) {
     return '';
   }
 
@@ -77,55 +81,181 @@ const escapeCsvValue = (value) => {
 
 const escapePdfText = (value) => String(value ?? '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 
-const buildSimplePdfBlob = (title, rows) => {
-  const leftMargin = 48;
-  const topStart = 790;
-  const lineHeight = 18;
-  let currentY = topStart;
+const buildEnhancedPdfBlob = (bookingData) => {
+  const { booking, professional, service, user, feeBreakdown } = bookingData;
+  
+  // Ensure we have proper customer data - handle both populated object and string ID cases
+  let customerName = 'N/A';
+  let customerEmail = 'N/A';
+  let customerPhone = 'N/A';
+  
+  if (user && typeof user === 'object') {
+    customerName = user?.name || 'N/A';
+    customerEmail = user?.email || 'N/A';
+    customerPhone = user?.phone || 'N/A';
+  } else if (booking && booking.customerId && typeof booking.customerId === 'object') {
+    customerName = booking.customerId?.name || 'N/A';
+    customerEmail = booking.customerId?.email || 'N/A';
+    customerPhone = booking.customerId?.phone || 'N/A';
+  } else if (booking && booking.userId && typeof booking.userId === 'object') {
+    // Fallback for userId field
+    customerName = booking.userId?.name || 'N/A';
+    customerEmail = booking.userId?.email || 'N/A';
+    customerPhone = booking.userId?.phone || 'N/A';
+  }
+  
+  let currentY = 750;
+  const leftMargin = 40;
+  const rightMargin = 555;
+  const contentStream = [];
 
-  const contentStream = [
-    'BT',
-    '/F1 18 Tf',
-    `${leftMargin} ${currentY} Td`,
-    `(${escapePdfText(title)}) Tj`,
-    'ET',
-    'BT',
-    '/F1 11 Tf',
-    ...rows.flatMap((row) => {
-      currentY -= lineHeight;
-      const rowText = Array.isArray(row) ? `${row[0]}: ${row[1]}` : String(row || '');
-      return [
-        `${leftMargin} ${currentY} Td`,
-        `(${escapePdfText(rowText)}) Tj`,
-      ];
-    }),
-    'ET',
-  ].join('\n');
+  const addText = (text, fontSize = 11, x = leftMargin, bold = false) => {
+    contentStream.push('BT');
+    contentStream.push(`/${bold ? 'F2' : 'F1'} ${fontSize} Tf`);
+    contentStream.push(`${x} ${currentY} Td`);
+    contentStream.push(`(${escapePdfText(text)}) Tj`);
+    contentStream.push('ET');
+    currentY -= fontSize + 2;
+  };
 
-  const contentLength = new TextEncoder().encode(contentStream).length;
+  const addLine = (y) => {
+    contentStream.push('q');
+    contentStream.push('0.5 w');
+    contentStream.push(`${leftMargin} ${y} m`);
+    contentStream.push(`${rightMargin} ${y} l`);
+    contentStream.push('S');
+    contentStream.push('Q');
+  };
 
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-    `<< /Length ${contentLength} >>\nstream\n${contentStream}\nendstream`,
-  ];
+  const addSection = (title) => {
+    currentY -= 8;
+    addText(title, 12, leftMargin, true);
+    currentY -= 3;
+    addLine(currentY);
+    currentY -= 6;
+  };
 
+  const addKeyValue = (key, value, indent = 0) => {
+    addText(`${key}: ${value}`, 10, leftMargin + indent);
+  };
+
+  // Header - Company Info
+  addText('KLPro Company', 16, leftMargin, true);
+  addText('Professional Services Booking Invoice', 11, leftMargin);
+  currentY -= 8;
+  addLine(currentY);
+  currentY -= 10;
+
+  // Booking Reference
+  addKeyValue('Invoice #', booking?._id || 'N/A');
+  addKeyValue('Date', booking?.scheduledDate ? new Date(booking.scheduledDate).toLocaleDateString('en-IN') : 'N/A');
+  currentY -= 10;
+
+  // Customer Section
+  addSection('CUSTOMER DETAILS');
+  addKeyValue('Name', customerName);
+  addKeyValue('Email', customerEmail);
+  addKeyValue('Phone', customerPhone);
+
+  // Professional Section
+  addSection('SERVICE PROVIDER');
+  addKeyValue('Name', professional?.userId?.name || 'N/A');
+  addKeyValue('Email', professional?.userId?.email || 'N/A');
+  addKeyValue('Phone', professional?.userId?.phone || 'N/A');
+
+  // Service Details
+  addSection('SERVICE DETAILS');
+  addKeyValue('Service', service?.name || booking?.serviceId?.name || 'N/A');
+  addKeyValue('Category', professional?.category || 'N/A');
+  addKeyValue('Scheduled Date', booking?.scheduledDate ? new Date(booking.scheduledDate).toLocaleDateString('en-IN') : 'N/A');
+  addKeyValue('Scheduled Time', booking?.scheduledTime || 'N/A');
+  addKeyValue('Service Address', booking?.serviceAddress?.street ? `${booking.serviceAddress.street}, ${booking.serviceAddress.city}` : 'N/A');
+  addKeyValue('Status', booking?.status || 'N/A');
+
+  // Payment Details
+  addSection('PAYMENT INFORMATION');
+  addKeyValue('Payment Method', booking?.paymentMethod ? booking.paymentMethod.charAt(0).toUpperCase() + booking.paymentMethod.slice(1) : 'N/A');
+  if (booking?.razorpayPaymentId) {
+    addKeyValue('Payment ID', booking.razorpayPaymentId);
+  }
+
+  // Amount Breakdown
+  addSection('AMOUNT BREAKDOWN');
+  const serviceCharge = Number(feeBreakdown?.totalAmount || booking?.price || 0);
+  const gst = Number(feeBreakdown?.gstAmount || 0);
+  const platformCharge = Number(feeBreakdown?.platformChargeAmount || 0);
+  const commission = Number(feeBreakdown?.commissionAmount || 0);
+  const professionalPayout = Number(feeBreakdown?.professionalPayoutAmount || 0);
+
+  addKeyValue('Service Charge', `INR ${serviceCharge.toLocaleString('en-IN')}`, 10);
+  addKeyValue('GST (on service)', `INR ${gst.toLocaleString('en-IN')}`, 10);
+  addKeyValue('Platform Charge', `INR ${platformCharge.toLocaleString('en-IN')}`, 10);
+  addKeyValue('Commission', `INR ${commission.toLocaleString('en-IN')}`, 10);
+  currentY -= 4;
+  addLine(currentY);
+  currentY -= 6;
+  addKeyValue('TOTAL AMOUNT', `INR ${(serviceCharge + gst + platformCharge).toLocaleString('en-IN')}`, 10);
+  currentY -= 6;
+  addKeyValue('Professional Payout', `INR ${professionalPayout.toLocaleString('en-IN')}`, 10);
+  currentY -= 12;
+
+  // Footer
+  addLine(currentY);
+  currentY -= 8;
+  addText('Thank you for using KLPro Company!', 9, leftMargin);
+  addText('For support, contact us at:', 8, leftMargin);
+  addText('Email: info@klproind.com | Phone: +91 9711379156', 8, leftMargin);
+
+  const contentStr = contentStream.join('\n');
+  const contentBinary = new TextEncoder().encode(contentStr);
+  const contentLength = contentBinary.length;
+
+  // Build PDF objects with correct references
+  const objects = [];
+  
+  // Object 1: Catalog
+  objects.push('<< /Type /Catalog /Pages 2 0 R >>');
+  
+  // Object 2: Pages
+  objects.push('<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  
+  // Object 3: Page (references fonts at objects 4 and 5)
+  objects.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>');
+  
+  // Object 4: Font Helvetica
+  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  
+  // Object 5: Font Helvetica-Bold
+  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  
+  // Object 6: Content stream with proper encoding
+  objects.push(`<< /Length ${contentLength} >>\nstream\n${contentStr}\nendstream`);
+
+  // Build PDF file
   let pdf = '%PDF-1.4\n';
-  const offsets = [0];
+  const offsets = [];
 
   objects.forEach((object, index) => {
     offsets.push(pdf.length);
     pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
   });
 
+  // Build xref table with correct offsets
   const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (let i = 1; i <= objects.length; i += 1) {
+  pdf += 'xref\n';
+  pdf += `0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  
+  for (let i = 0; i < offsets.length; i += 1) {
     pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
   }
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  
+  // Build trailer
+  pdf += 'trailer\n';
+  pdf += `<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
+  pdf += 'startxref\n';
+  pdf += `${xrefOffset}\n`;
+  pdf += '%%EOF';
 
   return new Blob([pdf], { type: 'application/pdf' });
 };
@@ -243,9 +373,43 @@ function Bookings() {
 
   const timeOptions = useMemo(() => createTimeOptions(), []);
 
+  const selectedProfessional = useMemo(
+    () => professionals.find((prof) => String(prof._id) === String(formData.professionalId)),
+    [professionals, formData.professionalId]
+  );
+
+  const filteredServices = useMemo(() => {
+    if (!selectedProfessional) {
+      return services;
+    }
+
+    // Try to get services from professional object
+    const professionalServices = selectedProfessional?.services;
+    
+    // If professional has services array defined, filter based on it
+    if (Array.isArray(professionalServices) && professionalServices.length > 0) {
+      const professionalServiceIds = professionalServices
+        .map((item) => {
+          // Handle different formats: {serviceId: ...}, {_id: ...}, or just ID string
+          const serviceId = item?.serviceId || item?._id || item;
+          return String(serviceId).trim();
+        })
+        .filter(Boolean);
+
+      if (professionalServiceIds.length > 0) {
+        return services.filter((service) => 
+          professionalServiceIds.includes(String(service._id))
+        );
+      }
+    }
+
+    // If professional has no services defined, return all services for backward compatibility
+    return services;
+  }, [selectedProfessional, services]);
+
   const selectedService = useMemo(
-    () => services.find((service) => String(service._id) === String(formData.serviceId)),
-    [services, formData.serviceId]
+    () => filteredServices.find((service) => String(service._id) === String(formData.serviceId)),
+    [filteredServices, formData.serviceId]
   );
 
   const bookingPricing = useMemo(() => {
@@ -393,6 +557,59 @@ function Bookings() {
     }));
   }, [bookingPricing.totalAmount, selectedService]);
 
+  // Validate that selected service is available for the selected professional
+  useEffect(() => {
+    if (!formData.serviceId || !formData.professionalId) return;
+
+    // Check if the currently selected service is available for the selected professional
+    const isServiceAvailableForProfessional = filteredServices.some(
+      (service) => String(service._id) === String(formData.serviceId)
+    );
+
+    // If service is not available, clear it
+    if (!isServiceAvailableForProfessional && formData.serviceId) {
+      setFormData((current) => ({
+        ...current,
+        serviceId: '',
+      }));
+    }
+  }, [filteredServices, formData.serviceId, formData.professionalId]);
+
+  // Fetch full professional details when professional ID changes to ensure we have services data
+  useEffect(() => {
+    if (!formData.professionalId) return;
+
+    const fetchProfessionalDetails = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/professionals/${formData.professionalId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const professionalDetail = await response.json();
+          
+          // Update the professionals array with the fetched professional details
+          // This ensures we have the latest services information
+          setProfessionals((prev) => {
+            const existingIndex = prev.findIndex((p) => String(p._id) === String(formData.professionalId));
+            if (existingIndex >= 0) {
+              const updated = [...prev];
+              updated[existingIndex] = professionalDetail;
+              return updated;
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to fetch professional details:', error);
+      }
+    };
+
+    fetchProfessionalDetails();
+  }, [formData.professionalId]);
+
   useEffect(() => {
     const unlockEvents = ['pointerdown', 'keydown', 'touchstart'];
     unlockEvents.forEach((eventName) => {
@@ -490,10 +707,21 @@ function Bookings() {
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
-    setFormData((current) => ({
-      ...current,
-      [name]: value,
-    }));
+    
+    // If professional is changed, clear the service selection since
+    // services available for the new professional might be different
+    if (name === 'professionalId') {
+      setFormData((current) => ({
+        ...current,
+        [name]: value,
+        serviceId: '', // Reset service when professional changes
+      }));
+    } else {
+      setFormData((current) => ({
+        ...current,
+        [name]: value,
+      }));
+    }
   };
 
   const handleAddressChange = (event) => {
@@ -642,30 +870,26 @@ function Bookings() {
   };
 
   const handleDownloadBookingPdf = (booking) => {
-    const professionalName = getProfessionalName(booking.professionalId);
-    const professionalUser = booking?.professionalId?.userId || {};
-    const rows = [
-      ['Booking ID', booking._id],
-      ['Professional Name', professionalName],
-      ['Professional Email', professionalUser.email || ''],
-      ['Professional Phone', professionalUser.phone || ''],
-      ['Service', booking?.serviceId?.name || ''],
-      ['Date', booking.scheduledDate ? new Date(booking.scheduledDate).toLocaleDateString() : ''],
-      ['Time', booking.scheduledTime || ''],
-      ['Amount (INR)', booking.price || ''],
-      ['Status', booking.status || ''],
-      ['', ''],
-      ['--- FEE BREAKDOWN ---', ''],
-      ['Service Charge', `₹${Number(booking?.feeBreakdown?.totalAmount || booking.price || 0).toLocaleString('en-IN')}`],
-      ['GST Deduction', `₹${Number(booking?.feeBreakdown?.gstAmount || 0).toLocaleString('en-IN')}`],
-      ['Platform Charge Deduction', `₹${Number(booking?.feeBreakdown?.platformChargeAmount || 0).toLocaleString('en-IN')}`],
-      ['Commission Deduction', `₹${Number(booking?.feeBreakdown?.commissionAmount || 0).toLocaleString('en-IN')}`],
-      ['', ''],
-      ['PROFESSIONAL PAYOUT', `₹${Number(booking?.feeBreakdown?.professionalPayoutAmount || 0).toLocaleString('en-IN')}`],
-    ];
+    const professional = booking?.professionalId || {};
+    const service = booking?.serviceId || {};
+    const user = booking?.customerId || {};
+    
+    const bookingData = {
+      booking,
+      professional,
+      service,
+      user,
+      feeBreakdown: booking?.feeBreakdown || {
+        totalAmount: booking?.price || 0,
+        gstAmount: 0,
+        platformChargeAmount: 0,
+        commissionAmount: 0,
+        professionalPayoutAmount: 0,
+      },
+    };
 
-    const pdfBlob = buildSimplePdfBlob('KLPro Completed Booking Summary', rows);
-    downloadBlob(pdfBlob, `booking-${booking._id}-professional.pdf`);
+    const pdfBlob = buildEnhancedPdfBlob(bookingData);
+    downloadBlob(pdfBlob, `KLPro_Invoice_${booking._id}.pdf`);
   };
 
   const handleCancelBooking = async (bookingId, reason) => {
@@ -796,8 +1020,12 @@ function Bookings() {
                 onChange={handleInputChange}
                 required
               >
-                <option value="">Select service</option>
-                {services.map((service) => (
+                <option value="">
+                  {selectedProfessional 
+                    ? 'Select a service offered by this professional' 
+                    : 'Select professional first'}
+                </option>
+                {filteredServices.map((service) => (
                   <option key={service._id} value={service._id}>
                     {service.name} - INR {service.basePrice}
                   </option>
@@ -1056,6 +1284,13 @@ function Bookings() {
                         />
                       </div>
                     </>
+                  )}
+                  {['confirmed', 'in-progress'].includes(String(booking.status || '')) && !getProfessionalLocation(booking.professionalId) && (
+                    <div style={{ padding: '12px', backgroundColor: '#e3f2fd', borderRadius: '8px', border: '1px solid #90caf9', marginTop: '12px' }}>
+                      <p style={{ margin: 0, color: '#1976d2' }}>
+                        📍 Professional location tracking will be available once the professional comes online.
+                      </p>
+                    </div>
                   )}
                   {booking.cancelReason && (
                     <div style={{ marginTop: 16 }}>

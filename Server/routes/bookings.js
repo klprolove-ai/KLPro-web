@@ -187,7 +187,7 @@ router.get('/professional/my-jobs', authMiddleware, async (req, res) => {
       .populate('customerId', 'name city')
       .populate({
         path: 'professionalId',
-        select: 'userId currentCity currentLocation',
+        select: 'userId currentCity currentLocation currentLocationUpdatedAt',
         populate: { path: 'userId', select: 'name profileImage' },
       })
       .populate('serviceId', 'name basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer category subCategory')
@@ -551,10 +551,11 @@ router.post('/:id/verify-completion-otp', authMiddleware, async (req, res) => {
 router.get('/user', authMiddleware, async (req, res) => {
   try {
     const bookings = await Booking.find({ customerId: req.userId })
+      .populate('customerId', 'name email phone')
       .populate({
         path: 'professionalId',
-        select: 'userId currentCity currentLocation',
-        populate: { path: 'userId', select: 'name profileImage phone' },
+        select: 'userId category currentCity currentLocation',
+        populate: { path: 'userId', select: 'name email profileImage phone' },
       })
       .populate('serviceId', 'name basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer')
       .sort({ createdAt: -1 });
@@ -569,10 +570,11 @@ router.get('/user', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const bookings = await Booking.find({ customerId: req.userId })
+      .populate('customerId', 'name email phone')
       .populate({
         path: 'professionalId',
-        select: 'userId currentCity currentLocation',
-        populate: { path: 'userId', select: 'name profileImage phone' },
+        select: 'userId category currentCity currentLocation currentLocationUpdatedAt',
+        populate: { path: 'userId', select: 'name email profileImage phone' },
       })
       .populate('serviceId', 'name basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer')
       .sort({ createdAt: -1 });
@@ -589,8 +591,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
       .populate('customerId', 'name email phone')
       .populate({
         path: 'professionalId',
-        select: 'userId currentCity currentLocation',
-        populate: { path: 'userId', select: 'name profileImage phone' },
+        select: 'userId category currentCity currentLocation currentLocationUpdatedAt',
+        populate: { path: 'userId', select: 'name email profileImage phone' },
       })
       .populate('serviceId', 'name basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer');
 

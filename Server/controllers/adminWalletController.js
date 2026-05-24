@@ -194,7 +194,7 @@ exports.creditProfessionalWallet = async (req, res) => {
       status: 'completed',
       description: description || reason,
       referenceType: 'manual',
-      adminId,
+      adminId: null,
       adminNotes: reason,
       balanceBefore: wallet.currentBalance,
       balanceAfter: wallet.currentBalance + amount,
@@ -257,7 +257,7 @@ exports.debitProfessionalWallet = async (req, res) => {
       status: 'completed',
       description: description || reason,
       referenceType: 'manual',
-      adminId,
+      adminId: null,
       adminNotes: reason,
       balanceBefore: wallet.currentBalance,
       balanceAfter: wallet.currentBalance - amount,
@@ -348,7 +348,7 @@ exports.deductBookingCommission = async (req, res) => {
       description: `Commission deducted for booking #${booking._id}`,
       referenceType: 'booking',
       referenceId: booking._id,
-      adminId,
+      adminId: null,
       adminNotes: 'Automatic commission deduction from booking payout',
       balanceBefore: wallet.currentBalance,
       balanceAfter: wallet.currentBalance - commissionAmount,
@@ -656,8 +656,19 @@ exports.getPendingWithdrawals = async (req, res) => {
       type: 'withdrawal_initiated',
       status: status,
     })
-      .populate('professionalId', 'name email phone -_id')
+      .populate({
+        path: 'professionalId',
+        select: 'userId category subCategory',
+        populate: {
+          path: 'userId',
+          select: 'name email phone',
+        },
+      })
       .populate('walletId', 'professionalId -_id')
+      .populate({
+        path: 'withdrawalDetails.bankDetailsId',
+        select: 'accountHolderName accountNumber ifscCode bankName branchName upiId verificationStatus paymentMethods isActive createdAt updatedAt',
+      })
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);

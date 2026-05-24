@@ -102,6 +102,7 @@ router.get('/bookings', verifyAdminToken, async (req, res) => {
       .populate('customerId', 'name email phone city')
       .populate({
         path: 'professionalId',
+        select: 'userId category currentCity currentLocation currentLocationUpdatedAt',
         populate: { path: 'userId', select: 'name email phone city' },
       })
       .populate('serviceId', 'name category subCategory basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer')
@@ -177,6 +178,7 @@ router.get('/bookings/:id', verifyAdminToken, async (req, res) => {
       .populate('customerId', 'name email phone city')
       .populate({
         path: 'professionalId',
+        select: 'userId category currentCity currentLocation currentLocationUpdatedAt',
         populate: { path: 'userId', select: 'name email phone city' },
       })
       .populate('serviceId', 'name category subCategory basePrice commissionToKlPro gstFromCustomer cashPaymentPlatformChargeFromCustomer');

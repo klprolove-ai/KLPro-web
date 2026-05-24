@@ -408,12 +408,16 @@ router.post('/forgot-password', async (req, res) => {
     const message = `Your KL Pro OTP is ${otp}. Valid for 10 minutes. Do not share with anyone.`;
     const smsResult = await sendSMS(mobile, message);
 
+    // Log full SMS result for debugging
+    console.log('Forgot-password SMS result:', smsResult);
+
     if (!smsResult.success) {
       console.error('SMS sending failed:', smsResult.error);
-      // Still return success to not expose SMS service issues
-      return res.status(200).json({
-        success: true,
-        message: 'OTP sent to your registered mobile number'
+      return res.status(502).json({
+        success: false,
+        message: 'Failed to send OTP via SMS gateway',
+        error: smsResult.error,
+        data: smsResult.data || null,
       });
     }
 

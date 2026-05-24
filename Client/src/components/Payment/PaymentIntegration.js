@@ -120,12 +120,30 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayme
       const rzp = new window.Razorpay(options);
       
       // Handle payment cancellation
-      rzp.on('payment.failed', (response) => {
+      rzp.on('payment.failed', async (response) => {
         console.log('Payment failed:', response);
         if (paymentTimeoutRef.current) {
           clearTimeout(paymentTimeoutRef.current);
         }
-        setError('Payment failed. Please try again.');
+        
+        // Cancel the booking when payment fails
+        try {
+          const token = getAuthToken();
+          await axios.post(`${API_BASE_URL}/bookings/${bookingId}/cancel`,
+            { reason: 'Payment failed: ' + (response.error?.description || 'Unknown error') },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          console.log('Booking cancelled due to payment failure');
+          setError('Payment failed. Booking has been cancelled. Please try again.');
+          setTimeout(() => {
+            if (onPaymentComplete) {
+              onPaymentComplete({ failed: true });
+            }
+          }, 2000);
+        } catch (cancelErr) {
+          console.error('Failed to cancel booking after payment failure:', cancelErr);
+          setError('Payment failed. Please contact support if booking is not cancelled.');
+        }
         setProcessing(false);
       });
 
@@ -141,7 +159,7 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayme
           console.log('Attempting to cancel booking:', bookingId);
           
           const cancelResponse = await axios.post(`${API_BASE_URL}/bookings/${bookingId}/cancel`,
-            {},
+            { reason: 'User cancelled during payment' },
             { headers: { Authorization: `Bearer ${token}` } }
           );
           
@@ -178,7 +196,7 @@ const PaymentIntegration = ({ bookingId, amount, onPaymentComplete, initialPayme
       try {
         const token = getAuthToken();
         await axios.post(`${API_BASE_URL}/bookings/${bookingId}/cancel`,
-          {},
+          { reason: 'Payment timeout - not completed within 5 minutes' },
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setError('Payment timed out. Booking has been cancelled.');

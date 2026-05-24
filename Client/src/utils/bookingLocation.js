@@ -32,7 +32,9 @@ export const extractCoordinates = (location) => {
   const latitude = Number(location.latitude ?? location.lat);
   const longitude = Number(location.longitude ?? location.lng ?? location.lon);
 
-  if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+  // Validate coordinates: must not be NaN, 0, or null
+  // Valid coordinates must be non-zero and not NaN
+  if (Number.isNaN(latitude) || Number.isNaN(longitude) || latitude === 0 || longitude === 0) {
     return null;
   }
 
@@ -104,6 +106,12 @@ export const geocodeLocation = async (location) => {
 export const haversineDistanceKm = (origin, destination) => {
   if (!origin || !destination) return null;
 
+  // Additional validation to ensure coordinates are valid numbers
+  if (!Number.isFinite(origin.latitude) || !Number.isFinite(origin.longitude) || 
+      !Number.isFinite(destination.latitude) || !Number.isFinite(destination.longitude)) {
+    return null;
+  }
+
   const toRadians = (degrees) => (degrees * Math.PI) / 180;
   const earthRadiusKm = 6371;
 
@@ -122,6 +130,12 @@ export const haversineDistanceKm = (origin, destination) => {
 
 export const bearingDegrees = (origin, destination) => {
   if (!origin || !destination) return null;
+
+  // Validate coordinates are actual numbers
+  if (!Number.isFinite(origin.latitude) || !Number.isFinite(origin.longitude) || 
+      !Number.isFinite(destination.latitude) || !Number.isFinite(destination.longitude)) {
+    return null;
+  }
 
   const toRadians = (degrees) => (degrees * Math.PI) / 180;
   const toDegrees = (radians) => (radians * 180) / Math.PI;
@@ -147,6 +161,12 @@ export const bearingToCompass = (degrees) => {
 
 export const buildMapEmbedUrl = (origin, destination) => {
   if (!origin || !destination) return '';
+
+  // Validate coordinates
+  if (!Number.isFinite(origin.latitude) || !Number.isFinite(origin.longitude) || 
+      !Number.isFinite(destination.latitude) || !Number.isFinite(destination.longitude)) {
+    return '';
+  }
 
   const delta = 0.01;
   const midLatitude = (origin.latitude + destination.latitude) / 2;

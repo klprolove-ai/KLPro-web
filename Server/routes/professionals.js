@@ -337,6 +337,30 @@ router.get('/:id', async (req, res) => {
     const onlineSet = getOnlineProfessionalUserIds();
     result.isOnline = onlineSet.has(String(result.userId?._id || ''));
 
+    // Populate services dynamically based on professional's category/subcategory
+    const Service = require('../models/Service');
+    const matchingServices = await Service.find({
+      $or: [
+        { category: professional.category },
+        { subCategory: professional.subCategory },
+        { subSubCategory: professional.subSubCategory },
+        { serviceType: professional.serviceType },
+      ],
+      isActive: true,
+    });
+
+    // If professional has services array defined, use those; otherwise use matched services
+    if (result.services && Array.isArray(result.services) && result.services.length > 0) {
+      // Keep existing services if defined
+    } else {
+      // Use matched services
+      result.services = matchingServices.map((service) => ({
+        serviceId: service._id,
+        serviceName: service.name,
+        price: service.basePrice,
+      }));
+    }
+
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
