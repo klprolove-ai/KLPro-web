@@ -184,7 +184,7 @@ router.get('/professional/my-jobs', authMiddleware, async (req, res) => {
     }
 
     const bookings = await Booking.find({ professionalId: professional._id })
-      .populate('customerId', 'name city')
+      .populate('customerId', 'name email phone address city currentCity')
       .populate({
         path: 'professionalId',
         select: 'userId currentCity currentLocation currentLocationUpdatedAt',

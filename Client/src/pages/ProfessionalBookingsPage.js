@@ -314,7 +314,7 @@ const ProfessionalBookingsPage = () => {
                   </div>
                 )}
 
-                {['confirmed', 'in-progress'].includes(String(booking.status || '')) && (
+                {['accepted', 'confirmed', 'in-progress'].includes(String(booking.status || '')) && (
                   (() => {
                     const professionalLoc = booking.professionalId?.currentLocation || null;
                     // Prefer customer currentLocation if available, otherwise fall back to serviceAddress
