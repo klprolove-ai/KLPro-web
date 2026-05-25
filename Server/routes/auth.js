@@ -405,7 +405,7 @@ router.post('/forgot-password', async (req, res) => {
     await otpRecord.save();
 
     // Send SMS with OTP
-    const message = `KLPro Company: Dear User, your verification code to log in is ${otp}. For security reasons, please do not share it with anyone. Thank you!\nhttps://www.klpro.company/`;
+    const message = `KLPro Company: Dear User, your verification code to log in is ${otp}. For security reasons, please do not share it with anyone. Thank you! https://www.klpro.company/`;
     const smsResult = await sendSMS(mobile, message);
 
     // Log full SMS result for debugging
