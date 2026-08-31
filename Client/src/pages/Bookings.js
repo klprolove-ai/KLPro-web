@@ -5,6 +5,7 @@ import { getSocket } from '../api/socket';
 import { useCall } from '../context/CallContext';
 import PaymentIntegration from '../components/Payment/PaymentIntegration';
 import BookingCancelDialog from '../components/BookingCancelDialog';
+import { trackBookingCompleted, trackPurchase } from '../utils/analytics';
 import './Bookings.css';
 
 const isObjectId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ''));
@@ -810,6 +811,7 @@ function Bookings() {
       const createdBooking = await response.json();
 
       localStorage.removeItem('bookingDraft');
+      trackBookingCompleted({ bookingId: createdBooking?._id || createdBooking?.id, value: parsedPrice });
       if (formData.paymentMethod === 'razorpay') {
         const initialPayment = createdBooking?.payment || null;
         setPendingPaymentBooking({ bookingId: createdBooking?._id, amount: initialPayment?.amount || parsedPrice, initialPayment });
@@ -840,10 +842,14 @@ function Bookings() {
 
   const handlePaymentComplete = async (result = {}) => {
     setPendingPaymentBooking(null);
-    if (result.cancelled) {
+    if (result.cancelled || result.failed) {
       setSuccessMessage('Payment cancelled. Booking has been cancelled.');
     } else {
       setSuccessMessage('Online payment completed successfully.');
+      trackPurchase({
+        transactionId: result?.data?.paymentId || result?.paymentId || pendingPaymentBooking?.bookingId,
+        value: Number(pendingPaymentBooking?.amount),
+      });
     }
     await refreshBookings();
   };

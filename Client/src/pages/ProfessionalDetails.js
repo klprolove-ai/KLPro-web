@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { professionalService, serviceService, getProfessionalReviews } from '../api/services';
 import { getSocket } from '../api/socket';
 import ReviewForm from '../components/ReviewForm';
 import ReviewsList from '../components/ReviewsList';
 import API_BASE_URL from '../config/apiConfig';
+import { trackStartBooking, trackViewProfessional } from '../utils/analytics';
 import './ProfessionalDetails.css';
 
 const THUMBNAIL_PALETTES = [
@@ -237,6 +238,7 @@ function ProfessionalDetails() {
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
   const [totalReviewPages, setTotalReviewPages] = useState(1);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  const lastTrackedProfessionalId = useRef(null);
 
   const bookingDraft = useMemo(() => {
     try {
@@ -468,6 +470,12 @@ function ProfessionalDetails() {
       return;
     }
 
+    trackStartBooking({
+      serviceId: resolvedServiceForBooking?._id || bookingDraft?.serviceId,
+      serviceName: resolvedServiceForBooking?.name || bookingDraft?.serviceName,
+      professionalId: professional.id,
+    });
+
     const nextBookingDraft = {
       professionalId: professional.id,
       professionalName: professional.name,
@@ -481,6 +489,14 @@ function ProfessionalDetails() {
     localStorage.setItem('bookingDraft', JSON.stringify(nextBookingDraft));
     navigate('/bookings');
   };
+
+  useEffect(() => {
+    const professionalId = professional?.id;
+    if (!professionalId || lastTrackedProfessionalId.current === professionalId) return;
+
+    lastTrackedProfessionalId.current = professionalId;
+    trackViewProfessional({ professionalId, professionalName: professional.name });
+  }, [professional]);
 
   if (loading) {
     return <p className="professional-details-message">Loading professional details...</p>;

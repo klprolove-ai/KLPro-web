@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import API_BASE_URL from '../config/apiConfig';
 import { disconnectSocket } from '../api/socket';
 import { getCartCount } from '../utils/cart';
+import { trackSearch } from '../utils/analytics';
 import './Header.css';
 
 function Header() {
@@ -173,6 +174,8 @@ function Header() {
       setShowSuggestions(false);
       return;
     }
+
+    trackSearch(query);
 
     // Count matching services vs products from suggestions
     const serviceMatches = suggestions.filter(s => s.type === 'service').length;

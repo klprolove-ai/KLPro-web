@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 import API_BASE_URL from '../config/apiConfig';
 import { SERVICE_HIERARCHY, getHierarchyOptions } from '../config/serviceHierarchy';
+import { trackLogin, trackSignup } from '../utils/analytics';
 import './Login.css';
 
 function Login() {
@@ -459,6 +460,7 @@ function Login() {
       }
 
       if (!isLogin && data.requiresApproval) {
+        trackSignup(formData.userType);
         // Registration for professional: show message and redirect to login
         setTimeout(() => {
           setIsLogin(true);
@@ -471,6 +473,7 @@ function Login() {
         return;
       }
       if (!isLogin && !data.requiresApproval) {
+        trackSignup(formData.userType);
         // Registration for customer: redirect to login
         setTimeout(() => {
           setIsLogin(true);
@@ -484,6 +487,7 @@ function Login() {
       }
 
       if (isLogin) {
+        trackLogin(loginAs);
         if (loginAs === 'admin' || data.admin) {
           localStorage.setItem('adminToken', data.token);
           localStorage.setItem('adminEmail', data.admin?.email || data.user?.email || formData.email);
