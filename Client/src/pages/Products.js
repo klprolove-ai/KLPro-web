@@ -3,6 +3,7 @@ import './Products.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import API_BASE_URL from '../config/apiConfig';
 import { addToCart } from '../utils/cart';
+import { trackAddToCart } from '../utils/analytics';
 import { PRODUCT_CATEGORY_HIERARCHY } from '../config/productCategoryHierarchy';
 
 function Products() {
@@ -298,6 +299,7 @@ function Products() {
 
   const handleBuyNow = (product) => {
     addToCart(product, 1);
+    trackAddToCart({ productId: product._id || product.id, productName: product.name, value: Number(product.price) });
     navigate('/cart');
   };
 

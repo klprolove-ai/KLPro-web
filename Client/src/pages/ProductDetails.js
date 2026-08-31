@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './ProductDetails.css';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getProductById, getProductReviews, getProducts } from '../api/services';
 import ReviewForm from '../components/ReviewForm';
 import ReviewsList from '../components/ReviewsList';
 import { addToCart } from '../utils/cart';
+import { trackAddToCart, trackViewProduct } from '../utils/analytics';
 
 function ProductDetails() {
   const { id } = useParams();
@@ -17,6 +18,7 @@ function ProductDetails() {
   const [reviewPage, setReviewPage] = useState(1);
   const [reviewPages, setReviewPages] = useState(1);
   const [cartNotice, setCartNotice] = useState('');
+  const lastTrackedProductId = useRef(null);
 
   const user = JSON.parse(localStorage.getItem('user'));
   const token = localStorage.getItem('token');
@@ -142,13 +144,23 @@ function ProductDetails() {
 
   const handleAddToCart = () => {
     addToCart(product, 1);
+    trackAddToCart({ productId: product._id || product.id, productName: product.name, value: Number(product.price) });
     setCartNotice(`${product.name} added to cart.`);
   };
 
   const handleBuyNow = () => {
     addToCart(product, 1);
+    trackAddToCart({ productId: product._id || product.id, productName: product.name, value: Number(product.price) });
     navigate('/cart');
   };
+
+  useEffect(() => {
+    const productId = product?._id || product?.id;
+    if (!productId || lastTrackedProductId.current === productId) return;
+
+    lastTrackedProductId.current = productId;
+    trackViewProduct({ productId, productName: product.name });
+  }, [product]);
 
   const openRelatedProduct = (productId) => {
     navigate(`/product/${productId}`);

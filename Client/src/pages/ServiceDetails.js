@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import './ServiceDetails.css';
 import { getServiceById, getServiceReviews, getServices } from '../api/services';
 import ReviewForm from '../components/ReviewForm';
 import ReviewsList from '../components/ReviewsList';
+import { trackStartBooking, trackViewService } from '../utils/analytics';
 
 const buildProfessionalsPath = (params) => {
   const searchParams = new URLSearchParams();
@@ -38,6 +39,7 @@ function ServiceDetails() {
   const [loading, setLoading] = useState(true);
   const [reviewPage, setReviewPage] = useState(1);
   const [reviewPages, setReviewPages] = useState(1);
+  const lastTrackedServiceId = useRef(null);
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -144,6 +146,8 @@ function ServiceDetails() {
   const handleBookNow = () => {
     if (!service) return;
 
+    trackStartBooking({ serviceId: service._id || service.id, serviceName: service.name });
+
     localStorage.setItem(
       'bookingDraft',
       JSON.stringify({
@@ -163,6 +167,14 @@ function ServiceDetails() {
       })
     );
   };
+
+  useEffect(() => {
+    const serviceId = service?._id || service?.id;
+    if (!serviceId || lastTrackedServiceId.current === serviceId) return;
+
+    lastTrackedServiceId.current = serviceId;
+    trackViewService({ serviceId, serviceName: service.name });
+  }, [service]);
 
   if (loading) {
     return <div className="service-details-page loading-message">Loading service details...</div>;

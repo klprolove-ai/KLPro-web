@@ -10,6 +10,7 @@ import {
   removeCartItem,
   updateCartItemQuantity,
 } from '../utils/cart';
+import { trackBeginCheckout, trackPurchase } from '../utils/analytics';
 
 const ORDERS_STORAGE_KEY = 'klproOrders';
 
@@ -141,6 +142,7 @@ function Cart() {
 
     try {
       setCheckoutError('');
+      trackBeginCheckout({ value: Number(total) });
       const token = localStorage.getItem('token');
 
       // Combine products and services for the order
@@ -233,6 +235,7 @@ function Cart() {
         setServiceItems([]);
         setCheckoutError('');
         setOrderSuccess(order);
+        trackPurchase({ transactionId: orderId, value: Number(total) });
       }
     } catch (error) {
       setCheckoutError(error.response?.data?.message || 'Failed to create order');
@@ -394,6 +397,7 @@ function Cart() {
                   setCartItems([]);
                   setPendingPaymentOrder(null);
                   setOrderSuccess(order);
+                  trackPurchase({ transactionId: pendingPaymentOrder.orderId, value: Number(pendingPaymentOrder.total) });
                 }}
               />
             </div>

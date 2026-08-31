@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import FloatingToggle from './components/FloatingToggle';
 import ProfessionalRequestAlert from './components/ProfessionalRequestAlert';
 import FirstVisitLocationPrompt from './components/FirstVisitLocationPrompt';
+import AnalyticsRouteTracker from './components/AnalyticsRouteTracker';
 import Home from './pages/Home';
 import Services from './pages/Services';
 import ServiceDetails from './pages/ServiceDetails';
@@ -51,6 +52,7 @@ function App() {
   return (
     <>
       <ScrollToTop />
+      <AnalyticsRouteTracker />
       <CallProvider>
         <div className="App">
           <Routes>
