@@ -25,6 +25,13 @@ export const trackPageView = ({ pagePath, pageTitle } = {}) => trackEvent('virtu
   page_title: pageTitle || (typeof document !== 'undefined' ? document.title : ''),
 });
 
+export const trackMetaPageView = () => {
+  if (!canUseWindow() || typeof window.fbq !== 'function') return false;
+
+  window.fbq('track', 'PageView');
+  return true;
+};
+
 export const trackLogin = (method) => trackEvent('login', method ? { method } : {});
 export const trackSignup = (accountType) => trackEvent('sign_up', accountType ? { account_type: accountType } : {});
 export const trackViewProduct = ({ productId, productName }) => trackEvent('view_product', {

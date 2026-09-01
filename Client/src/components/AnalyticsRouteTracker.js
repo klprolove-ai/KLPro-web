@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { trackPageView } from '../utils/analytics';
+import { trackMetaPageView, trackPageView } from '../utils/analytics';
 
 function AnalyticsRouteTracker() {
   const location = useLocation();
   const lastTrackedPath = useRef(null);
+  const isInitialPageView = useRef(true);
 
   useEffect(() => {
     const pagePath = `${location.pathname}${location.search}`;
@@ -12,6 +13,13 @@ function AnalyticsRouteTracker() {
 
     lastTrackedPath.current = pagePath;
     trackPageView({ pagePath, pageTitle: document.title });
+
+    if (isInitialPageView.current) {
+      isInitialPageView.current = false;
+      return;
+    }
+
+    trackMetaPageView();
   }, [location.pathname, location.search]);
 
   return null;
